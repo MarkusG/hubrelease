@@ -1,0 +1,45 @@
+functionality:
+* create/read tags
+* read remotes to form GitHub URL
+* create GitHub releases
+ * leave packaging to the user
+  * multiple files
+ * upload package
+ * exec $EDITOR to write release title/body
+ * mimic git-commit with first line as title and rest as body?
+ * option to write release in terminal or not
+  * if not, POST draft release w/ file and return URL
+
+organization:
+main.c: main program logic
+open repository
+get remotes
+if !(tryparse remote to GitHub URL)
+	ask user
+get tag at HEAD
+if !tag
+	create tag
+push tags
+if write_in_terminal
+	open editor to write release title/body to temp file
+else
+	write release draft and print URL to stdout
+get prerelease from argv
+post release
+upload assets
+
+git.c/.h: reimpl of git commands
+ * char *git_tag_at(char *commit)
+  * make this return a string or a git_tag? would mean including git2 in main
+ * git_tag_create(char *commit)
+ * git_push_tags()
+ * char **git_get_remotes()
+
+github.c/.h: functions for posting releases and uploading files
+ * post_release(char *payload)
+ * upload_asset(char *path)
+  * autodetect media type and name
+
+common.c/.h: helper functions/structs
+ * struct post_release_payload
+ * char *post_release_payload_tostr(struct post_release_payload *payload)
