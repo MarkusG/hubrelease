@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <git2.h>
 
-// TODO fix segfault in foreach callback because tag goes out of scope after the callback returns
 // also clean up everything and make it more readable. variable names in callback are a mess
 
 struct tag_target {
@@ -81,8 +80,16 @@ int main(int argc, char *argv[])
 	struct tag_target tag_target;
 	tag_target.repo = repo;
 	tag_target.object = target;
+	// figure out why not setting this to null makes the tag's name the name of a random shell variable
+	tag_target.tag = NULL;
 
 	git_tag_foreach(repo, points_at_callback, &tag_target);
+	if (tag_target.tag == NULL)
+	{
+		printf("No tag at HEAD\n");
+		return 1;
+	}
+	const char* tag_name = git_tag_name(tag_target.tag);
 	printf("Tag at HEAD is %s\n", git_tag_name(tag_target.tag));
 	return 0;
 }
