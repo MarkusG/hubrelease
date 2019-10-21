@@ -13,29 +13,28 @@ int points_at_callback(const char *name, git_oid *oid, void *userdata)
 	struct points_at_data *data;
 	data = (struct points_at_data*)userdata;
 		
-	git_tag *this_tag;
-	git_tag_lookup(&this_tag, data->repo, oid);
-	if (!this_tag)
+	git_tag *cur_tag;
+	git_tag_lookup(&cur_tag, data->repo, oid);
+	if (!cur_tag)
 	{
 		// not an annotated tag; tag id is same as commit id
-		// TODO what if it's not a commit
 		for (int i = 0; i < 20; i++)
 		{
 			if (data->object->id[i] != oid->id[i])
 				return 0;
 		}
-		data->tag = this_tag;
+		data->tag = cur_tag;
 		return 1;
 	}
 
-	const git_oid *this_target_oid = git_tag_target_id(this_tag);
+	const git_oid *this_target_oid = git_tag_target_id(cur_tag);
 	for (int i = 0; i < 20; i++)
 	{
 		if (data->object->id[i] != this_target_oid->id[i])
 			return 0;
 	}
 	
-	data->tag = this_tag;
+	data->tag = cur_tag;
 	return 1;
 }
 
