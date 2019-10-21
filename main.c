@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <git2.h>
 
-// also clean up everything and make it more readable. variable names in callback are a mess
-
 struct points_at_data {
 	git_repository *repo;
 	const git_oid *object;
@@ -62,7 +60,6 @@ int main(int argc, char *argv[])
 	struct points_at_data target;
 	target.repo = repo;
 	target.object = head_oid;
-	// figure out why not setting this to null makes the tag's name the name of a random shell variable
 	target.tag = NULL;
 
 	git_tag_foreach(repo, points_at_callback, &target);
