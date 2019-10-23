@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "git.h"
@@ -63,4 +64,34 @@ const char *r_git_tag_at(const char *commit)
 	if (predicate.tag == NULL)
 		return NULL;
 	return git_tag_name(predicate.tag);
+}
+
+const char **r_git_list_remote_urls()
+{
+	git_strarray array;
+	if (git_remote_list(&array, repo))
+	{
+		const git_error *error = git_error_last();
+		fprintf(stderr, "git: %s\n", error->message);
+		return NULL;
+	}
+
+	int bufsize = REMOTE_URL_BUFSIZE;
+	const char **list = malloc(bufsize * sizeof(char*)) ;
+	int i;
+	for (i = 0; i < array.count; i++)
+	{
+		if (i > bufsize - 1)
+		{
+			bufsize += REMOTE_URL_BUFSIZE;
+			list = realloc(list, bufsize);
+		}
+		git_remote *remote;
+		git_remote_lookup(&remote, repo, array.strings[i]);
+
+		list[i] = git_remote_url(remote);
+	}
+	list[i] = NULL;
+	git_strarray_free(&array);
+	return list;
 }

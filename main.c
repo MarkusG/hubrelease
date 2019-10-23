@@ -11,7 +11,14 @@ int main(int argc, char *argv[])
 	if (!tag)
 	{
 		printf("No tag at %s\n", commit);
-		return 1;
+		/* return 1; */
 	}
 	printf("Tag at %s is %s\n", commit, tag);
+
+	printf("\n");
+	const char **remote_urls = r_git_list_remote_urls();
+	int i = 0;
+	while (remote_urls[i] != NULL)
+		printf("remote: %s\n", remote_urls[i++]);
+	return 0;
 }
