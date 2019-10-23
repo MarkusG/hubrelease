@@ -1,73 +1,17 @@
 #include <stdio.h>
-#include <git2.h>
 
-struct points_at_data {
-	git_repository *repo;
-	const git_oid *object;
-
-	git_tag *tag;
-} points_at_data;
-
-int points_at_callback(const char *name, git_oid *oid, void *userdata)
-{
-	struct points_at_data *data;
-	data = (struct points_at_data*)userdata;
-		
-	git_tag *cur_tag;
-	git_tag_lookup(&cur_tag, data->repo, oid);
-	if (!cur_tag)
-	{
-		// not an annotated tag; tag id is same as commit id
-		for (int i = 0; i < 20; i++)
-		{
-			if (data->object->id[i] != oid->id[i])
-				return 0;
-		}
-		data->tag = cur_tag;
-		return 1;
-	}
-
-	const git_oid *this_target_oid = git_tag_target_id(cur_tag);
-	for (int i = 0; i < 20; i++)
-	{
-		if (data->object->id[i] != this_target_oid->id[i])
-			return 0;
-	}
-	
-	data->tag = cur_tag;
-	return 1;
-}
+#include "git.h"
 
 int main(int argc, char *argv[])
 {
-	git_libgit2_init();
+	r_git_initialize();
 
-	git_repository *repo;
-	int error = git_repository_open(&repo, ".git");
-	if (error)
+	const char *commit = "133d5383640b677905f7de1905983b5d777efd09";
+	const char *tag = r_git_tag_at(commit);
+	if (!tag)
 	{
-		const git_error *error = git_error_last();
-		printf("%s\n", error->message);
-	}
-
-	git_reference *head;
-	git_repository_head(&head, repo);
-	git_reference *resolved;
-	git_reference_resolve(&resolved, head);
-	const git_oid *head_oid = git_reference_target(resolved);
-
-	struct points_at_data target;
-	target.repo = repo;
-	target.object = head_oid;
-	target.tag = NULL;
-
-	git_tag_foreach(repo, points_at_callback, &target);
-	if (target.tag == NULL)
-	{
-		printf("No tag at HEAD\n");
+		printf("No tag at %s\n", commit);
 		return 1;
 	}
-	const char* tag_name = git_tag_name(target.tag);
-	printf("Tag at HEAD is %s\n", git_tag_name(target.tag));
-	return 0;
+	printf("Tag at %s is %s\n", commit, tag);
 }
