@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "git.h"
+#include "github.h"
 
 int main(int argc, char *argv[])
 {
@@ -19,6 +20,9 @@ int main(int argc, char *argv[])
 	const char **remote_urls = r_git_list_remote_urls();
 	int i = 0;
 	while (remote_urls[i] != NULL)
-		printf("remote: %s\n", remote_urls[i++]);
+	{
+		printf("remote: %s\n", remote_urls[i]);
+		printf("stripped: %s\n", github_strip_remote(remote_urls[i++]));
+	}
 	return 0;
 }
