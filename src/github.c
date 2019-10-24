@@ -12,7 +12,7 @@ char *github_strip_remote(const char *remote)
 		// git@github.com:user/repo.git
 		int n = strlen(remote) - 13 - 6;
 		strncpy(result, &remote[15], n);
-		result[n + 1] = '\0';
+		result[n] = '\0';
 		return result;
 	}
 	else if (strncmp(remote, "https://github.com/", 19) == 0)
@@ -20,7 +20,7 @@ char *github_strip_remote(const char *remote)
 		// https://github.com/user/repo.git
 		int n = strlen(remote) - 20 - 3;
 		strncpy(result, &remote[19], n);
-		result[n + 1] = '\0';
+		result[n] = '\0';
 		return result;
 	}
 }
