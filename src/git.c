@@ -70,6 +70,29 @@ const char *r_git_tag_at(const char *commit)
 	return git_tag_name(predicate.tag);
 }
 
+const char *r_git_commit_at_head()
+{
+	git_reference *head;
+	if (git_repository_head(&head, repo))
+	{
+		const git_error *error = git_error_last();
+		fprintf(stderr, "git: %s\n", error->message);
+		return NULL;
+	}
+
+	if (git_reference_resolve(&head, head))
+	{
+		const git_error *error = git_error_last();
+		fprintf(stderr, "git: %s\n", error->message);
+		return NULL;
+	}
+
+	const git_oid *oid = git_reference_target(head);
+
+	char *out = malloc(42 * sizeof(char));
+	return git_oid_tostr(out, 42, oid);
+}
+
 const char **r_git_list_remote_urls()
 {
 	git_strarray array;
