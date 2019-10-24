@@ -1,6 +1,4 @@
-#include <git2.h>
+#ifndef __RELEASER_COMMON_H__
+#define __RELEASER_COMMON_H__
 
-typedef struct tag_at_predicate {
-	const git_oid *commit;
-	git_tag *tag;
-} tag_at_predicate;
+#endif

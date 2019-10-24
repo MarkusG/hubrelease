@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "git.h"
+
+typedef struct tag_at_predicate {
+	const git_oid *commit;
+	git_tag *tag;
+} tag_at_predicate;
 
 static git_repository *repo;
 
