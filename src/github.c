@@ -26,4 +26,6 @@ char *github_strip_remote(const char *remote)
 		result[n] = '\0';
 		return result;
 	}
+
+	return NULL;
 }
