@@ -52,8 +52,8 @@ int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 
 const char *r_git_tag_at(const char *commit)
 {
-	git_oid *commit_oid;
-	if (git_oid_fromstr(commit_oid, commit))
+	git_oid commit_oid;
+	if (git_oid_fromstr(&commit_oid, commit))
 	{
 		const git_error *error = git_error_last();
 		fprintf(stderr, "git: %s\n", error->message);
@@ -61,7 +61,7 @@ const char *r_git_tag_at(const char *commit)
 	}
 	
 	tag_at_predicate predicate;
-	predicate.commit = commit_oid;
+	predicate.commit = &commit_oid;
 	predicate.tag = NULL;
 
 	git_tag_foreach(repo, tag_at_callback, &predicate);

@@ -9,16 +9,16 @@ int main(int argc, char *argv[])
 
 	const char **remote_urls = r_git_list_remote_urls();
 
-	printf("HEAD: %s\n", r_git_commit_at_head());
+	const char *head = r_git_commit_at_head();
+	printf("HEAD: %s\n", head);
 
-	const char *commit = "133d5383640b677905f7de1905983b5d777efd09";
-	const char *tag = r_git_tag_at(commit);
+	const char *tag = r_git_tag_at(head);
 	if (!tag)
 	{
-		printf("No tag at %s\n", commit);
+		printf("No tag at %s\n", head);
 		/* return 1; */
 	}
-	printf("Tag at %s is %s\n", commit, tag);
+	printf("Tag at %s is %s\n", head, tag);
 
 	printf("\n");
 	int i = 0;
