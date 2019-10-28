@@ -13,6 +13,11 @@ int main(int argc, char *argv[])
 	r_git_initialize();
 
 	const char **remote_urls = r_git_list_remote_urls();
+	if (!remote_urls)
+	{
+		fprintf(stderr, "No remotes found\n");
+		return 1;
+	}
 
 	char *base_url = "https://api.github.com";
 	char *preferred_remote = malloc(MAX_URL * sizeof(char));

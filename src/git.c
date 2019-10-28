@@ -102,6 +102,8 @@ const char **r_git_list_remote_urls()
 		fprintf(stderr, "git: %s\n", error->message);
 		return NULL;
 	}
+	if (array.count == 0)
+		return NULL;
 
 	int bufsize = REMOTE_URL_BUFSIZE;
 	const char **list = malloc(bufsize * sizeof(char*)) ;

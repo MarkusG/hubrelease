@@ -1,7 +1,7 @@
 functionality:
-* create/read tags
-* read remotes to form GitHub URL
-* create GitHub releases
+* create/read tags												IN PROGRESS
+* read remotes to form GitHub URL								DONE
+* create GitHub releases										TODO
  * leave packaging to the user
   * multiple files
  * upload package
