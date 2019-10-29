@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 	const git_tag *head_tag = r_git_tag_at(head);
 	if (!head_tag)
 	{
-		fprintf(stderr, ERR "No valid tag at HEAD\n");
+		fprintf(stderr, ERR "No annotated tag at HEAD\n");
 		return 1;
 	}
 	// write release message
