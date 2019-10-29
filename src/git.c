@@ -124,3 +124,26 @@ const char **r_git_list_remote_urls()
 	git_strarray_free(&array);
 	return list;
 }
+
+const char *r_git_editor()
+{
+	git_config *config;
+	if (git_repository_config(&config, repo))
+	{
+		r_git_warn();
+		return NULL;
+	}
+	git_config *snapshot;
+	if (git_config_snapshot(&snapshot, config))
+	{
+		r_git_warn();
+		return NULL;
+	}
+	const char *editor;
+	if (git_config_get_string(&editor, snapshot, "core.editor"))
+	{
+		r_git_warn();
+		return NULL;
+	}
+	return editor;
+}

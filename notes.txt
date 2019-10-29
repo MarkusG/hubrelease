@@ -1,5 +1,5 @@
 functionality:
-* create/read tags												IN PROGRESS
+* read tags														DONE
 * read remotes to form GitHub URL								DONE
 * create GitHub releases										TODO
  * leave packaging to the user

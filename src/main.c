@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "common.h"
 #include "git.h"
@@ -79,5 +83,51 @@ int main(int argc, char *argv[])
 		fprintf(stderr, ERR "No valid tag at HEAD\n");
 		return 1;
 	}
-	return 0;
+	// write release message
+	// write tag message to release message file
+	FILE *release_message = fopen(".releaser_message", "w");
+	if (!release_message)
+	{
+		fprintf(stderr, ERR "Could not open .releaser_message for writing\n");
+		perror(argv[0]);
+		return 1;
+	}
+	fprintf(release_message, "%s", git_tag_message(head_tag));
+	fclose(release_message);
+	// get git editor
+	const char *editor = r_git_editor();
+	if (!editor)
+		editor = getenv("EDITOR");
+	if (!editor)
+	{
+		fprintf(stderr, WARN "No editor found. Defaulting to nano");
+		editor = "nano";
+	}
+
+	// open vim and wait for user to edit message
+	pid_t pid = fork();
+	if (pid == -1)
+	{
+		fprintf(stderr, ERR "Couldn't fork\n");
+		return 1;
+	}
+	if (pid == 0)
+	{
+		const char *args[] = { NULL, ".releaser_message", NULL };
+		args[0] = editor;
+		execvp(editor, (char**)args);
+		exit(0);
+	}
+	else
+		wait(NULL);
+
+	// check if the user cleared the release message to abort the release
+	struct stat release_message_stat;
+	if (stat(".releaser_message", &release_message_stat) == -1)
+		perror(argv[0]);
+	if (release_message_stat.st_size == 0)
+	{
+		fprintf(stderr, ERR "Empty release message\n");
+		return 1;
+	}
 }
