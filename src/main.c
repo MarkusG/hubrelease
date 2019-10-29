@@ -71,5 +71,14 @@ int main(int argc, char *argv[])
 	char *api_url = malloc(MAX_URL * sizeof(char));
 	sprintf(api_url, "%s/repos/%s/releases", base_url, preferred_remote);
 	printf("%s\n", api_url);
+
+	const char *head = r_git_commit_at_head();
+	const git_tag *head_tag = r_git_tag_at(head);
+	if (!head_tag)
+	{
+		fprintf(stderr, "No valid tag at HEAD\n");
+		return 1;
+	}
+	printf("HEAD: %s\n", git_tag_name(head_tag));
 	return 0;
 }
