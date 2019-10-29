@@ -4,6 +4,18 @@
 #include "common.h"
 #include "git.h"
 
+int r_git_error(void)
+{
+	const git_error *error = git_error_last();
+	return fprintf(stderr, ERR "git: %s\n", error->message);
+}
+
+int r_git_warn(void)
+{
+	const git_error *error = git_error_last();
+	return fprintf(stderr, WARN "git: %s\n", error->message);
+}
+
 typedef struct tag_at_predicate {
 	const git_oid *commit;
 	git_tag *tag;
@@ -16,8 +28,7 @@ int r_git_initialize()
 	git_libgit2_init();
 	if (git_repository_open(&repo, ".git"))
 	{
-		const git_error *error = git_error_last();
-		fprintf(stderr, ERR "git: %s\n", error->message);
+		r_git_error();
 		return 1;
 	}
 }
@@ -31,8 +42,7 @@ int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 	if (git_tag_lookup(&cur_tag, repo, oid))
 	{
 		fprintf(stderr, WARN "%s is lightweight and cannot be used for a release\n", name);
-		const git_error *error = git_error_last();
-		fprintf(stderr, WARN "git: %s\n", error->message);
+		r_git_warn();
 		return 0;
 	}
 
@@ -51,8 +61,7 @@ const git_tag *r_git_tag_at(const char *commit)
 	git_oid commit_oid;
 	if (git_oid_fromstr(&commit_oid, commit))
 	{
-		const git_error *error = git_error_last();
-		fprintf(stderr, WARN "git: %s\n", error->message);
+		r_git_warn();
 		return NULL;
 	}
 	
@@ -69,15 +78,13 @@ const char *r_git_commit_at_head()
 	git_reference *head;
 	if (git_repository_head(&head, repo))
 	{
-		const git_error *error = git_error_last();
-		fprintf(stderr, ERR "git: %s\n", error->message);
+		r_git_error();
 		return NULL;
 	}
 
 	if (git_reference_resolve(&head, head))
 	{
-		const git_error *error = git_error_last();
-		fprintf(stderr, ERR "git: %s\n", error->message);
+		r_git_error();
 		return NULL;
 	}
 
@@ -92,8 +99,7 @@ const char **r_git_list_remote_urls()
 	git_strarray array;
 	if (git_remote_list(&array, repo))
 	{
-		const git_error *error = git_error_last();
-		fprintf(stderr, "git: %s\n", error->message);
+		r_git_error();
 		return NULL;
 	}
 	if (array.count == 0)
