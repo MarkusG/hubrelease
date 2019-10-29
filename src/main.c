@@ -20,6 +20,8 @@ int main(int argc, char *argv[])
 	}
 
 	char *base_url = "https://api.github.com";
+	// go through the repository's remotes, present GitHub remotes to the user,
+	// and let them choose the desired GitHub repository
 	char *preferred_remote = malloc(MAX_URL * sizeof(char));
 	FILE *remote_file = fopen(".releaser_remote", "r");
 	if (remote_file)
@@ -32,6 +34,7 @@ int main(int argc, char *argv[])
 		char **github_remotes = malloc(GITHUB_REMOTE_BUFSIZE * sizeof(char*));
 		int i = 0;
 		int j = 0;
+		// go through all the remotes and select unique GitHub remotes
 		while (remote_urls[i] != NULL)
 		{
 			char *stripped_remote = github_strip_remote(remote_urls[i++]);
@@ -46,17 +49,24 @@ int main(int argc, char *argv[])
 			}
 			if (dup)
 				continue;
-			printf("%0d. %s\n", j, stripped_remote);
 			github_remotes[j] = malloc(MAX_URL * sizeof(char));
 			strcpy(github_remotes[j++], stripped_remote);
 		}
-		printf("Select remote: ");
+		// if there's more than one unique GitHub remote, prompt the user to choose
+		// which one they want to release to
 		int remote_index = 0;
-		scanf("%d", &remote_index);
+		if (j != 1)
+		{
+			int k = 0;
+			while (github_remotes[k] != NULL)
+				printf("%0d. %s\n", k++, github_remotes[k]);
+			printf("Select remote: ");
+			scanf("%d", &remote_index);
+			remote_file = fopen(".releaser_remote", "w");
+			fputs(github_remotes[remote_index], remote_file);
+			fclose(remote_file);
+		}
 		strcpy(preferred_remote, github_remotes[remote_index]);
-		remote_file = fopen(".releaser_remote", "w");
-		fputs(github_remotes[remote_index], remote_file);
-		fclose(remote_file);
 	}
 	char *api_url = malloc(MAX_URL * sizeof(char));
 	sprintf(api_url, "%s/repos/%s/releases", base_url, preferred_remote);
