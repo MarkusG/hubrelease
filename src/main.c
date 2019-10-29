@@ -13,8 +13,19 @@
 #define MAX_URL 128
 #define GITHUB_REMOTE_BUFSIZE 8
 
+char opt_draft = 0;
+char opt_prerelease = 0;
+
 int main(int argc, char *argv[])
 {
+	for (int i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "--draft") == 0)
+			opt_draft = 1;
+		if (strcmp(argv[i], "--prerelease") == 0)
+			opt_prerelease = 1;
+	}
+
 	r_git_initialize();
 
 	const char **remote_urls = r_git_list_remote_urls();
@@ -92,42 +103,50 @@ int main(int argc, char *argv[])
 		perror(argv[0]);
 		return 1;
 	}
-	fprintf(release_message, "%s", git_tag_message(head_tag));
-	fclose(release_message);
-	// get git editor
-	const char *editor = r_git_editor();
-	if (!editor)
-		editor = getenv("EDITOR");
-	if (!editor)
-	{
-		fprintf(stderr, WARN "No editor found. Defaulting to nano");
-		editor = "nano";
-	}
 
-	// open vim and wait for user to edit message
-	pid_t pid = fork();
-	if (pid == -1)
-	{
-		fprintf(stderr, ERR "Couldn't fork\n");
-		return 1;
-	}
-	if (pid == 0)
-	{
-		const char *args[] = { NULL, ".releaser_message", NULL };
-		args[0] = editor;
-		execvp(editor, (char**)args);
-		exit(0);
-	}
+	if (opt_draft)
+		fprintf(release_message, "%s", git_tag_name(head_tag));
 	else
-		wait(NULL);
+		fprintf(release_message, "%s", git_tag_message(head_tag));
+	fclose(release_message);
 
-	// check if the user cleared the release message to abort the release
-	struct stat release_message_stat;
-	if (stat(".releaser_message", &release_message_stat) == -1)
-		perror(argv[0]);
-	if (release_message_stat.st_size == 0)
+	if (!opt_draft)
 	{
-		fprintf(stderr, ERR "Empty release message\n");
-		return 1;
+		// get git editor
+		const char *editor = r_git_editor();
+		if (!editor)
+			editor = getenv("EDITOR");
+		if (!editor)
+		{
+			fprintf(stderr, WARN "No editor found. Defaulting to nano");
+			editor = "nano";
+		}
+
+		// open vim and wait for user to edit message
+		pid_t pid = fork();
+		if (pid == -1)
+		{
+			fprintf(stderr, ERR "Couldn't fork\n");
+			return 1;
+		}
+		if (pid == 0)
+		{
+			const char *args[] = { NULL, ".releaser_message", NULL };
+			args[0] = editor;
+			execvp(editor, (char**)args);
+			exit(0);
+		}
+		else
+			wait(NULL);
+
+		// check if the user cleared the release message to abort the release
+		struct stat release_message_stat;
+		if (stat(".releaser_message", &release_message_stat) == -1)
+			perror(argv[0]);
+		if (release_message_stat.st_size == 0)
+		{
+			fprintf(stderr, ERR "Empty release message\n");
+			return 1;
+		}
 	}
 }

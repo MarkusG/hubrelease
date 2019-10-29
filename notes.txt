@@ -5,7 +5,7 @@ functionality:
  * leave packaging to the user
   * multiple files
  * upload package
- * exec $EDITOR to write release title/body
+ * exec $EDITOR to write release title/body						DONE
  * mimic git-commit with first line as title and rest as body?
  * option to write release in terminal or not
   * if not, POST draft release w/ file and return URL
