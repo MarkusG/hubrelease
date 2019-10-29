@@ -22,6 +22,7 @@ typedef struct tag_at_predicate {
 } tag_at_predicate;
 
 static git_repository *repo;
+static git_remote *preferred_remote;
 
 int r_git_initialize()
 {
@@ -106,7 +107,7 @@ const char **r_git_list_remote_urls()
 		return NULL;
 
 	int bufsize = REMOTE_URL_BUFSIZE;
-	const char **list = malloc(bufsize * sizeof(char*)) ;
+	const char **list = malloc(bufsize * sizeof(char*));
 	int i;
 	for (i = 0; i < array.count; i++)
 	{
@@ -146,4 +147,22 @@ const char *r_git_editor()
 		return NULL;
 	}
 	return editor;
+}
+
+int r_git_set_preferred_remote(int index)
+{
+	git_strarray array;
+	if (git_remote_list(&array, repo))
+	{
+		r_git_error();
+		return -1;
+	}
+
+	git_remote_lookup(&preferred_remote, repo, array.strings[index]);
+
+	printf("%s\n", git_remote_url(preferred_remote));
+}
+
+int r_git_push_tags()
+{
 }

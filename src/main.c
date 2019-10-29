@@ -47,13 +47,18 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
-		char **github_remotes = malloc(GITHUB_REMOTE_BUFSIZE * sizeof(char*));
+		int n_remotes = 0;
+		while (remote_urls[n_remotes] != NULL)
+			n_remotes++;
+		int *git_remote_at_parsed = malloc(n_remotes * sizeof(int));
+		char **github_remotes = malloc(n_remotes * sizeof(char*));
+
 		int i = 0;
 		int j = 0;
 		// go through all the remotes and select unique GitHub remotes
 		while (remote_urls[i] != NULL)
 		{
-			char *stripped_remote = github_strip_remote(remote_urls[i++]);
+			char *stripped_remote = github_strip_remote(remote_urls[i]);
 			if (stripped_remote == NULL)
 				continue;
 			int k = 0;
@@ -64,7 +69,11 @@ int main(int argc, char *argv[])
 					dup = 1;
 			}
 			if (dup)
+			{
+				i++;
 				continue;
+			}
+			git_remote_at_parsed[j] = i++;
 			github_remotes[j] = malloc(MAX_URL * sizeof(char));
 			strcpy(github_remotes[j++], stripped_remote);
 		}
@@ -83,6 +92,7 @@ int main(int argc, char *argv[])
 			fclose(remote_file);
 		}
 		strcpy(preferred_remote, github_remotes[remote_index]);
+		r_git_set_preferred_remote(git_remote_at_parsed[remote_index]);
 	}
 	char *api_url = malloc(MAX_URL * sizeof(char));
 	sprintf(api_url, "%s/repos/%s/releases", base_url, preferred_remote);
@@ -149,4 +159,6 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+
+
 }
