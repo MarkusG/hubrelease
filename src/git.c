@@ -159,8 +159,6 @@ int r_git_set_preferred_remote(int index)
 	}
 
 	git_remote_lookup(&preferred_remote, repo, array.strings[index]);
-
-	printf("%s\n", git_remote_url(preferred_remote));
 }
 
 int r_git_push_tags()
