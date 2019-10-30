@@ -4,6 +4,9 @@
 #include "common.h"
 #include "git.h"
 
+git_repository *repo;
+git_remote *preferred_remote;
+
 int r_git_error(void)
 {
 	const git_error *error = git_error_last();
@@ -20,19 +23,6 @@ typedef struct tag_at_predicate {
 	const git_oid *commit;
 	git_tag *tag;
 } tag_at_predicate;
-
-static git_repository *repo;
-static git_remote *preferred_remote;
-
-int r_git_initialize()
-{
-	git_libgit2_init();
-	if (git_repository_open(&repo, ".git"))
-	{
-		r_git_error();
-		return 1;
-	}
-}
 
 int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 {
@@ -74,58 +64,6 @@ const git_tag *r_git_tag_at(const char *commit)
 	return predicate.tag;
 }
 
-const char *r_git_commit_at_head()
-{
-	git_reference *head;
-	if (git_repository_head(&head, repo))
-	{
-		r_git_error();
-		return NULL;
-	}
-
-	if (git_reference_resolve(&head, head))
-	{
-		r_git_error();
-		return NULL;
-	}
-
-	const git_oid *oid = git_reference_target(head);
-
-	char *out = malloc(42 * sizeof(char));
-	return git_oid_tostr(out, 42, oid);
-}
-
-const char **r_git_list_remote_urls()
-{
-	git_strarray array;
-	if (git_remote_list(&array, repo))
-	{
-		r_git_error();
-		return NULL;
-	}
-	if (array.count == 0)
-		return NULL;
-
-	int bufsize = REMOTE_URL_BUFSIZE;
-	const char **list = malloc(bufsize * sizeof(char*));
-	int i;
-	for (i = 0; i < array.count; i++)
-	{
-		if (i > bufsize - 1)
-		{
-			bufsize += REMOTE_URL_BUFSIZE;
-			list = realloc(list, bufsize);
-		}
-		git_remote *remote;
-		git_remote_lookup(&remote, repo, array.strings[i]);
-
-		list[i] = git_remote_url(remote);
-	}
-	list[i] = NULL;
-	git_strarray_free(&array);
-	return list;
-}
-
 const char *r_git_editor()
 {
 	git_config *config;
@@ -147,20 +85,4 @@ const char *r_git_editor()
 		return NULL;
 	}
 	return editor;
-}
-
-int r_git_set_preferred_remote(int index)
-{
-	git_strarray array;
-	if (git_remote_list(&array, repo))
-	{
-		r_git_error();
-		return -1;
-	}
-
-	git_remote_lookup(&preferred_remote, repo, array.strings[index]);
-}
-
-int r_git_push_tags()
-{
 }
