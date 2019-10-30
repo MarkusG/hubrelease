@@ -60,7 +60,10 @@ int main(int argc, char *argv[])
 		{
 			char *stripped_remote = github_strip_remote(remote_urls[i]);
 			if (stripped_remote == NULL)
+			{
+				i++;
 				continue;
+			}
 			int k = 0;
 			int dup = 0;
 			while (k < j)
