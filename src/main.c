@@ -91,14 +91,15 @@ int main(int argc, char *argv[])
 			printf("Select remote: ");
 			scanf("%d", &remote_index);
 			remote_file = fopen(".releaser_remote", "w");
-			fputs(github_remotes[remote_index], remote_file);
+			fputs(remote_urls[git_remote_at_parsed[remote_index]], remote_file);
 			fclose(remote_file);
 		}
-		strcpy(preferred_remote, github_remotes[remote_index]);
+		strcpy(preferred_remote, remote_urls[git_remote_at_parsed[remote_index]]);
 		r_git_set_preferred_remote(git_remote_at_parsed[remote_index]);
 	}
 	char *api_url = malloc(MAX_URL * sizeof(char));
-	sprintf(api_url, "%s/repos/%s/releases", base_url, preferred_remote);
+	char *stripped_remote = github_strip_remote(preferred_remote);
+	sprintf(api_url, "%s/repos/%s/releases", base_url, stripped_remote);
 
 	const char *head = r_git_commit_at_head();
 	const git_tag *head_tag = r_git_tag_at(head);
