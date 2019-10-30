@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 		while (remote_urls[n_remotes] != NULL)
 			n_remotes++;
 		int *git_remote_at_parsed = malloc(n_remotes * sizeof(int));
-		char **github_remotes = malloc(n_remotes * sizeof(char*));
+		char **github_remotes = calloc(n_remotes, sizeof(char*));
 
 		int i = 0;
 		int j = 0;
