@@ -191,12 +191,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (opt_draft)
-		fprintf(release_message, "%s", git_tag_name(head_tag));
-	else
-		fprintf(release_message, "%s", git_tag_message(head_tag));
+	// write tag message to release message
+	fprintf(release_message, "%s", git_tag_message(head_tag));
 	fclose(release_message);
 
+	// edit the release message if not a draft
 	if (!opt_draft)
 	{
 		// get git editor
