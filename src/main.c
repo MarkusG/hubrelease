@@ -11,6 +11,7 @@
 #include "github.h"
 
 #define MAX_URL 128
+#define MAX_REMOTE 64
 #define REMOTE_BUFSIZE 8
 
 char opt_draft = 0;
@@ -34,7 +35,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	// get remotes
+	// go through the repository's remotes, present GitHub remotes to the user,
+	// and let them choose the desired GitHub repository
 	git_strarray array;
 	if (git_remote_list(&array, repo))
 	{
@@ -47,71 +49,65 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	int bufsize = REMOTE_BUFSIZE;
-	// TODO store remote name instead of url
-	const char **remote_urls = malloc(bufsize * sizeof(char*));
-	if (!remote_urls)
-		perror(argv[0]);
-	int i;
-	for (i = 0; i < array.count; i++)
-	{
-		if (i > bufsize - 1)
-		{
-			bufsize += REMOTE_BUFSIZE;
-			remote_urls = realloc(remote_urls, bufsize);
-		}
-		git_remote *remote;
-		git_remote_lookup(&remote, repo, array.strings[i]);
-
-		remote_urls[i] = git_remote_url(remote);
-	}
-	remote_urls[i] = NULL;
-	git_strarray_free(&array);
-
-	// go through the repository's remotes, present GitHub remotes to the user,
-	// and let them choose the desired GitHub repository
-	char *preferred_remote_url = malloc(MAX_URL * sizeof(char));
 	FILE *remote_file = fopen(".releaser_remote", "r");
 	if (remote_file)
 	{
-		fscanf(remote_file, "%s", preferred_remote_url);
+		const char *cached_remote_name = malloc(MAX_REMOTE * sizeof(char));
+		fscanf(remote_file, "%s", cached_remote_name);
 		fclose(remote_file);
+		git_remote_lookup(&preferred_remote, repo, cached_remote_name);
 	}
 	else
 	{
-		int n_remotes = 0;
-		while (remote_urls[n_remotes] != NULL)
-			n_remotes++;
-		int *git_remote_at_parsed = malloc(n_remotes * sizeof(int));
-		char **github_remotes = calloc(n_remotes, sizeof(char*));
-
+		// go through all the remotes and select unique GitHub remotes
+		int bufsize = REMOTE_BUFSIZE;
+		char **github_remotes = malloc(bufsize * sizeof(char*));
+		char **github_remote_names = malloc(bufsize * sizeof(char*));
 		int i = 0;
 		int j = 0;
-		// go through all the remotes and select unique GitHub remotes
-		while (remote_urls[i] != NULL)
+		for (i = 0; i < array.count; i++)
 		{
-			char *stripped_remote = github_strip_remote(remote_urls[i]);
-			if (stripped_remote == NULL)
+			if (j > bufsize - 1)
 			{
-				i++;
-				continue;
+				bufsize += REMOTE_BUFSIZE;
+				github_remotes = realloc(github_remotes, bufsize);
+				github_remote_names = realloc(github_remotes, bufsize);
 			}
+				
+			git_remote *remote;
+			git_remote_lookup(&remote, repo, array.strings[i]);
+
+			const char *name = git_remote_name(remote);
+			const char *url = git_remote_url(remote);
+			char *stripped_url = github_strip_remote(url);
+			if (!stripped_url)
+				continue;
 			int k = 0;
 			int dup = 0;
 			while (k < j)
 			{
-				if (strcmp(github_remotes[k++], stripped_remote) == 0)
+				git_remote *check_remote;
+				git_remote_lookup(&check_remote, repo, github_remotes[k++]);
+				const char *check_url = git_remote_url(check_remote);
+				const char *check_stripped = github_strip_remote(check_url);
+				git_remote *current_remote;
+				git_remote_lookup(&current_remote, repo, name);
+				const char *current_url = git_remote_url(current_remote);
+				const char *current_stripped = github_strip_remote(current_url);
+				if (strcmp(check_stripped, current_stripped) == 0)
 					dup = 1;
 			}
 			if (dup)
-			{
-				i++;
 				continue;
-			}
-			git_remote_at_parsed[j] = i++;
-			github_remotes[j] = malloc(MAX_URL * sizeof(char));
-			strcpy(github_remotes[j++], stripped_remote);
+			github_remotes[j] = malloc(MAX_REMOTE * sizeof(char));
+			strcpy(github_remotes[j], name);
+			github_remote_names[j] = malloc(MAX_URL * sizeof(char));
+			strcpy(github_remote_names[j], stripped_url);
+			j++;
 		}
+		github_remotes[j] = NULL;
+		github_remote_names[j] = NULL;
+
 		// if there's more than one unique GitHub remote, prompt the user to choose
 		// which one they want to release to
 		int remote_index = 0;
@@ -119,22 +115,18 @@ int main(int argc, char *argv[])
 		{
 			int k = 0;
 			while (github_remotes[k] != NULL)
-				printf("%0d. %s\n", k++, github_remotes[k]);
+				printf("%0d. %s\n", k++, github_remote_names[k]);
 			printf("Select remote: ");
 			scanf("%d", &remote_index);
-			remote_file = fopen(".releaser_remote", "w");
-			fputs(remote_urls[git_remote_at_parsed[remote_index]], remote_file);
-			fclose(remote_file);
 		}
-		strcpy(preferred_remote_url, remote_urls[git_remote_at_parsed[remote_index]]);
-		// set the preferred remote
-		git_strarray array;
-		git_remote_list(&array, repo);
-
-		git_remote_lookup(&preferred_remote, repo, array.strings[git_remote_at_parsed[remote_index]]);
+		remote_file = fopen(".releaser_remote", "w");
+		fputs(github_remotes[remote_index], remote_file);
+		fclose(remote_file);
+		git_remote_lookup(&preferred_remote, repo, github_remotes[remote_index]);
 	}
+
 	char *api_url = malloc(MAX_URL * sizeof(char));
-	char *stripped_remote = github_strip_remote(preferred_remote_url);
+	char *stripped_remote = github_strip_remote(git_remote_url(preferred_remote));
 	char *base_url = "https://api.github.com";
 	sprintf(api_url, "%s/repos/%s/releases", base_url, stripped_remote);
 
