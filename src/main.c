@@ -16,15 +16,27 @@
 
 char opt_draft = 0;
 char opt_prerelease = 0;
+char *opt_remote;
 
 int main(int argc, char *argv[])
 {
+	// parse command-line options
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "--draft") == 0)
 			opt_draft = 1;
 		if (strcmp(argv[i], "--prerelease") == 0)
 			opt_prerelease = 1;
+		if (strcmp(argv[i], "--remote") == 0)
+		{
+			if (!argv[i + 1])
+			{
+				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
+				return 1;
+			}
+			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char));
+			strcpy(opt_remote, argv[i + 1]);
+		}
 	}
 
 	// initialize git
@@ -49,9 +61,20 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	FILE *remote_file = fopen(".releaser_remote", "r");
-	if (remote_file)
+	// set the preferred remote
+	FILE *remote_file;
+	if (opt_remote)
 	{
+		// get from command-line option
+		if (git_remote_lookup(&preferred_remote, repo, opt_remote))
+		{
+			r_git_error();
+			return 1;
+		}
+	}
+	else if (remote_file = fopen(".releaser_remote", "r"))
+	{
+		// get from cache file
 		const char *cached_remote_name = malloc(MAX_REMOTE * sizeof(char));
 		fscanf(remote_file, "%s", cached_remote_name);
 		fclose(remote_file);
@@ -59,6 +82,7 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+		// get from repository remotes
 		// go through all the remotes and select unique GitHub remotes
 		int bufsize = REMOTE_BUFSIZE;
 		char **github_remotes = malloc(bufsize * sizeof(char*));
@@ -119,6 +143,7 @@ int main(int argc, char *argv[])
 			printf("Select remote: ");
 			scanf("%d", &remote_index);
 		}
+		// cache the preferred remote
 		remote_file = fopen(".releaser_remote", "w");
 		fputs(github_remotes[remote_index], remote_file);
 		fclose(remote_file);

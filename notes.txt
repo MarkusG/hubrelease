@@ -1,3 +1,8 @@
+options:
+--draft: do not prompt user for release message and use tag contents
+--prerelease: mark release as prerelease
+--remote ORIGIN: specify origin
+
 functionality:
 * read tags														DONE
 * read remotes to form GitHub URL								DONE
