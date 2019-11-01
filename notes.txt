@@ -29,6 +29,19 @@ example response:
   "fingerprint": null
 }
 
+example error:
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "resource": "OauthAccess",
+      "code": "already_exists",
+      "field": "note"
+    }
+  ],
+  "documentation_url": "https://developer.github.com/v3/oauth_authorizations/#create-a-new-authorization"
+}
+
 options:
 --draft: do not prompt user for release message and use tag contents
 --prerelease: mark release as prerelease
