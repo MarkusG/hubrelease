@@ -1,4 +1,4 @@
 make:
-	gcc src/*.c -lgit2
+	gcc src/*.c -lgit2 -lcurl
 debug:
-	gcc -g src/*.c -lgit2
+	gcc -g src/*.c -lgit2 -lcurl

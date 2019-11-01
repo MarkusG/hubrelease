@@ -7,6 +7,28 @@ curl --request POST \
   --header 'X-GitHub-OTP: OTP' \
   --data '{"scopes": ["public_repo"], "note": "test"}'
 
+example response:
+{
+  "id": 000000000,
+  "url": "https://api.github.com/authorizations/000000000",
+  "app": {
+    "name": "test",
+    "url": "https://developer.github.com/v3/oauth_authorizations/",
+    "client_id": "00000000000000000000"
+  },
+  "token": "ffffffffffffffffffffffffffffffffffffffff",
+  "hashed_token": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "token_last_eight": "ffffffff",
+  "note": "test",
+  "note_url": null,
+  "created_at": "2019-10-31T23:14:04Z",
+  "updated_at": "2019-10-31T23:14:04Z",
+  "scopes": [
+    "public_repo"
+  ],
+  "fingerprint": null
+}
+
 options:
 --draft: do not prompt user for release message and use tag contents
 --prerelease: mark release as prerelease

@@ -7,16 +7,22 @@
 #include <sys/stat.h>
 
 #include "common.h"
+#include "curl.h"
 #include "git.h"
 #include "github.h"
 
 #define MAX_URL 128
+#define MAX_USERNAME 64
+#define MAX_PASSWORD 64
+#define MAX_OTP 8
+#define MAX_HEADER 64
 #define MAX_REMOTE 64
 #define REMOTE_BUFSIZE 8
 
 char opt_draft = 0;
 char opt_prerelease = 0;
 char *opt_remote;
+char *opt_github_token;
 
 int main(int argc, char *argv[])
 {
@@ -27,6 +33,16 @@ int main(int argc, char *argv[])
 			opt_draft = 1;
 		if (strcmp(argv[i], "--prerelease") == 0)
 			opt_prerelease = 1;
+		if (strcmp(argv[i], "--token") == 0)
+		{
+			if (!argv[i + 1])
+			{
+				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
+				return 1;
+			}
+			opt_github_token = malloc(strlen(argv[i + 1]) * sizeof(char));
+			strcpy(opt_github_token, argv[i + 1]);
+		}
 		if (strcmp(argv[i], "--remote") == 0)
 		{
 			if (!argv[i + 1])
@@ -150,11 +166,6 @@ int main(int argc, char *argv[])
 		git_remote_lookup(&preferred_remote, repo, github_remotes[remote_index]);
 	}
 
-	char *api_url = malloc(MAX_URL * sizeof(char));
-	char *stripped_remote = github_strip_remote(git_remote_url(preferred_remote));
-	char *base_url = "https://api.github.com";
-	sprintf(api_url, "%s/repos/%s/releases", base_url, stripped_remote);
-
 	// get the repository's HEAD
 	git_reference *head_ref;
 	if (git_repository_head(&head_ref, repo))
@@ -235,6 +246,113 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
+	
+	char *base_url = "https://api.github.com";
+	// authorize to GitHub
+	// acquire access token
+	FILE *token_file = fopen(".releaser_token", "r");
+	if (token_file)
+	{
+		opt_github_token = malloc(42);
+		fgets(opt_github_token, 41, token_file);
+		fclose(token_file);
+	}
+	else if (!opt_github_token)
+	{
+		// get the user's username
+		char *github_username = malloc(MAX_USERNAME * sizeof(char));
+		if (!github_username)
+			perror(argv[0]);
+		fprintf(stderr, "GitHub username: \n");
+		scanf("%s", github_username);
 
+		// get the user's password
+		// should anything special be done here to protect the password?
+		char *github_password = malloc(MAX_USERNAME * sizeof(char));
+		if (!github_password)
+			perror(argv[0]);
+		fprintf(stderr, "GitHub password: \n");
+		// TODO no echo
+		scanf("%s", github_password);
 
+		// acquire a token
+		CURL *curl;
+		CURLcode res;
+
+		curl_global_init(CURL_GLOBAL_ALL);
+		curl = curl_easy_init();
+		if (!curl)
+		{
+			fprintf(stderr, ERR "Unknown error with libcurl");
+			return 1;
+		}
+		
+		// form auth URL
+		char *auth_url = malloc((strlen(base_url) + strlen("/authorizations")) * sizeof(char));
+		sprintf(auth_url, "%s/authorizations", base_url);
+		curl_easy_setopt(curl, CURLOPT_URL, auth_url);
+
+		// get OTP code if user is using 2FA
+		char *github_otp = malloc(MAX_OTP * sizeof(char));
+		if (!github_otp)
+			perror(argv[0]);
+		fprintf(stderr, "GitHub 2FA code (0 if not using 2FA): ");
+		scanf("%s", github_otp);
+
+		// set headers
+		struct curl_slist *chunk = NULL;
+		chunk = curl_slist_append(chunk, "Content-Type: application/json");
+
+		if (strcmp(github_otp, "0") != 0)
+		{
+			char *github_otp_header = malloc(MAX_HEADER * sizeof(char));
+			sprintf(github_otp_header, "X-GitHub-OTP: %s", github_otp);
+			chunk = curl_slist_append(chunk, github_otp_header);
+		}
+
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+
+		// set username/password
+		char *github_userpwd = malloc((MAX_USERNAME + MAX_PASSWORD) * sizeof(char));
+		sprintf(github_userpwd, "%s:%s", github_username, github_password);
+		curl_easy_setopt(curl, CURLOPT_USERPWD, github_userpwd);
+
+		// set curl callback to save the response in memory
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+		r_curl_response response;
+		response.memory = malloc(1);
+		response.size = 0;
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
+
+		// set useragent
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+		// set POST data
+		char data[] = "{\"scopes\": [\"public_repo\"], \"note\": \"test\"}";
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+
+		// perform the request
+		res = curl_easy_perform(curl);
+		if (res != CURLE_OK)
+		{
+			fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
+			return 1;
+		}
+		// TODO handle "successful" response but failure
+
+		// strip the token from the response
+		char *token_field = strstr(response.memory, "\"token\"");
+		// magic numbers are bad
+		opt_github_token = malloc(42);
+		strncpy(opt_github_token, token_field + strlen("token: \"") + 2, 40);
+
+		FILE *token_file = fopen(".releaser_token", "w");
+		fputs(opt_github_token, token_file);
+		fclose(token_file);
+		fprintf(stderr, INFO "Wrote token to .releaser_token. DO NOT TRACK THIS FILE WITH GIT\n");
+	}
+
+	char *api_url = malloc(MAX_URL * sizeof(char));
+	char *stripped_remote = github_strip_remote(git_remote_url(preferred_remote));
+	sprintf(api_url, "%s/repos/%s/releases", base_url, stripped_remote);
 }
