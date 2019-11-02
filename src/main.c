@@ -340,6 +340,14 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 		
+		// check for error because token already exists
+		if (strstr(response.memory, "\"code\": \"already_exists\""))
+		{
+			fprintf(stderr, ERR "GitHub access token already exists\n");
+			fprintf(stderr, ERR "Delete it at https://github.com/settings/tokens and run this program again to regenerate\n");
+			return 1;
+		}
+
 		// check for general errors
 		char *message_field = strstr(response.memory, "\"message\": \"");
 		if (message_field)
@@ -354,19 +362,11 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-		// check for error because token already exists
-		if (strstr(response.memory, "\"code\": \"already_exists\""))
-		{
-			fprintf(stderr, ERR "GitHub access token already exists\n");
-			fprintf(stderr, ERR "Delete it at https://github.com/settings/tokens and run this program again to regenerate\n");
-			return 1;
-		}
-
 		// strip the token from the response
 		char *token_field = strstr(response.memory, "\"token\": \"");
 		// magic numbers are bad
 		opt_github_token = malloc(42);
-		strncpy(opt_github_token, token_field + strlen("\"token\": \"") - 1, 41);
+		strncpy(opt_github_token, token_field + strlen("\"token\": \""), 40);
 
 		FILE *token_file = fopen(".releaser_token", "w");
 		fputs(opt_github_token, token_file);
