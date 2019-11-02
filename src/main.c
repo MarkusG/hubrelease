@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <jansson.h>
+
 #include "common.h"
 #include "curl.h"
 #include "git.h"
@@ -18,6 +20,9 @@
 #define MAX_HEADER 64
 #define MAX_REMOTE 64
 #define MAX_ERROR 128
+#define MAX_TITLE 64
+
+#define PAYLOAD_EXTRA 256
 #define REMOTE_BUFSIZE 8
 
 char opt_draft = 0;
@@ -61,6 +66,13 @@ int main(int argc, char *argv[])
 	if (git_repository_open(&repo, ".git"))
 	{
 		r_git_error();
+		return 1;
+	}
+
+	// initialize curl
+	if (curl_global_init(CURL_GLOBAL_ALL))
+	{
+		fprintf(stderr, ERR "Could not initialize curl\n");
 		return 1;
 	}
 
@@ -280,7 +292,6 @@ int main(int argc, char *argv[])
 		CURL *curl;
 		CURLcode res;
 
-		curl_global_init(CURL_GLOBAL_ALL);
 		curl = curl_easy_init();
 		if (!curl)
 		{
@@ -374,7 +385,73 @@ int main(int argc, char *argv[])
 		fprintf(stderr, INFO "Wrote token to .releaser_token. DO NOT TRACK THIS FILE WITH GIT\n");
 	}
 
-	char *api_url = malloc(MAX_URL * sizeof(char));
+	// form the release URL
+	char *release_url = malloc(MAX_URL * sizeof(char));
 	char *stripped_remote = github_strip_remote(git_remote_url(preferred_remote));
-	sprintf(api_url, "%s/repos/%s/releases", base_url, stripped_remote);
+	sprintf(release_url, "%s/repos/%s/releases", base_url, stripped_remote);
+
+	CURL *curl;
+	CURLcode res;
+
+	curl = curl_easy_init();
+	if (!curl)
+	{
+		fprintf(stderr, ERR "Unknown error with libcurl");
+		return 1;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_URL, release_url);
+		
+	// set useragent
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+	// set headers
+	struct curl_slist *chunk = NULL;
+	char *auth_header = malloc(MAX_HEADER * sizeof(char));
+	sprintf(auth_header, "Authorization: token %s", opt_github_token);
+	chunk = curl_slist_append(chunk, auth_header);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+
+	// set curl callback to save the response in memory
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+	r_curl_response response;
+	response.memory = malloc(1);
+	response.size = 0;
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
+
+
+	// set POST data
+	// get title and body from .releaser_message
+	release_message = fopen(".releaser_message", "r");
+	struct stat release_message_stat;
+	if (stat(".releaser_message", &release_message_stat) == -1)
+		perror(argv[0]);
+	off_t message_size = release_message_stat.st_size;
+	char *name = malloc(MAX_TITLE * sizeof(char));
+	fscanf(release_message, "%[^\n]", name);
+	char *body = malloc(release_message_stat.st_size * sizeof(char));
+	fseek(release_message, 2, SEEK_CUR);
+	char c;
+	int i = 0;
+	while ((c = fgetc(release_message)) != EOF)
+		body[i++] = c;
+	body[i] = '\0';
+
+	// form data string and pass to curl
+	json_t *data_json = json_pack("{sssssssbsb}", 
+			"tag_name", git_tag_name(head_tag),
+			"name", name,
+			"body", body,
+			"draft", opt_draft,
+			"prerelease", opt_prerelease);
+	char *data = json_dumps(data_json, JSON_INDENT(4));
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+
+	// perform the request
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK)
+	{
+		fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
+		return 1;
+	}
 }
