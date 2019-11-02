@@ -28,7 +28,7 @@
 char opt_draft = 0;
 char opt_prerelease = 0;
 char *opt_remote;
-char *opt_github_token;
+const char *opt_github_token;
 
 int main(int argc, char *argv[])
 {
@@ -46,8 +46,9 @@ int main(int argc, char *argv[])
 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
 				return 1;
 			}
-			opt_github_token = malloc(strlen(argv[i + 1]) * sizeof(char));
-			strcpy(opt_github_token, argv[i + 1]);
+			char *arg_github_token = malloc(strlen(argv[i + 1]) * sizeof(char));
+			strcpy(arg_github_token, argv[i + 1]);
+			opt_github_token = arg_github_token;
 		}
 		if (strcmp(argv[i], "--remote") == 0)
 		{
@@ -266,8 +267,9 @@ int main(int argc, char *argv[])
 	FILE *token_file = fopen(".releaser_token", "r");
 	if (token_file)
 	{
-		opt_github_token = malloc(42);
-		fgets(opt_github_token, 41, token_file);
+		char *file_github_token = malloc(42);
+		fgets(file_github_token, 41, token_file);
+		opt_github_token = file_github_token;
 		fclose(token_file);
 	}
 	else if (!opt_github_token)
@@ -343,6 +345,7 @@ int main(int argc, char *argv[])
 		char data[] = "{\"scopes\": [\"public_repo\"], \"note\": \"releaser\"}";
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 
+
 		// perform the request
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
@@ -350,34 +353,42 @@ int main(int argc, char *argv[])
 			fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
 			return 1;
 		}
-		
-		// check for error because token already exists
-		if (strstr(response.memory, "\"code\": \"already_exists\""))
-		{
-			fprintf(stderr, ERR "GitHub access token already exists\n");
-			fprintf(stderr, ERR "Delete it at https://github.com/settings/tokens and run this program again to regenerate\n");
-			return 1;
-		}
 
-		// check for general errors
-		char *message_field = strstr(response.memory, "\"message\": \"");
-		if (message_field)
+		// read the response into a json object
+		json_error_t json_error;
+		json_t *root = json_loads(response.memory, 0, &json_error);
+
+		// check for errors
+		long http_code = 0;
+		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+		if (http_code >= 400)
 		{
-			char *message = malloc(MAX_ERROR * sizeof(char));
-			message = message_field + strlen("\"message\": \"");
-			int i = 0;
-			while (message[i] != '"')
-				i++;
-			message[i] = '\0';
-			fprintf(stderr, ERR "GitHub: %s\n", message);
-			return 1;
+			json_t *error_message = json_object_get(root, "message");
+			if (error_message)
+			{
+				fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
+				json_t *errors_array = json_object_get(root, "errors");
+				if (errors_array)
+				{
+					fputs(" (", stderr);
+					for (int i = 0; i < json_array_size(errors_array); i++)
+					{
+						json_t *error = json_array_get(errors_array, i);
+						json_t *error_code = json_object_get(error, "code");
+						fputs(json_string_value(error_code), stderr);
+						if (i < json_array_size(errors_array) - 1)
+							fputc(' ', stderr);
+					}
+					fputc(')', stderr);
+				}
+				fputc('\n', stderr);
+				return 1;
+			}
 		}
 
 		// strip the token from the response
-		char *token_field = strstr(response.memory, "\"token\": \"");
-		// magic numbers are bad
-		opt_github_token = malloc(42);
-		strncpy(opt_github_token, token_field + strlen("\"token\": \""), 40);
+		json_t *json_token = json_object_get(root, "token");
+		opt_github_token = json_string_value(json_token);
 
 		FILE *token_file = fopen(".releaser_token", "w");
 		fputs(opt_github_token, token_file);
@@ -418,7 +429,6 @@ int main(int argc, char *argv[])
 	response.memory = malloc(1);
 	response.size = 0;
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
-
 
 	// set POST data
 	// get title and body from .releaser_message
