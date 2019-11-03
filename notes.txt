@@ -42,6 +42,47 @@ example error:
   "documentation_url": "https://developer.github.com/v3/oauth_authorizations/#create-a-new-authorization"
 }
 
+release POST response:
+{
+    "url": "https://api.github.com/repos/MarkusGordathian/dummy/releases/21171200",
+    "assets_url": "https://api.github.com/repos/MarkusGordathian/dummy/releases/21171200/assets",
+    "upload_url": "https://uploads.github.com/repos/MarkusGordathian/dummy/releases/21171200/assets{?name,label}",
+    "html_url": "https://github.com/MarkusGordathian/dummy/releases/tag/0.1.0",
+    "id": 21171200,
+    "node_id": "MDc6UmVsZWFzZTIxMTcxMjAw",
+    "tag_name": "0.1.0",
+    "target_commitish": "master",
+    "name": "0.1.0",
+    "draft": false,
+    "author": {
+        "login": "MarkusGordathian",
+        "id": 10702518,
+        "node_id": "MDQ6VXNlcjEwNzAyNTE4",
+        "avatar_url": "https://avatars0.githubusercontent.com/u/10702518?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/MarkusGordathian",
+        "html_url": "https://github.com/MarkusGordathian",
+        "followers_url": "https://api.github.com/users/MarkusGordathian/followers",
+        "following_url": "https://api.github.com/users/MarkusGordathian/following{/other_user}",
+        "gists_url": "https://api.github.com/users/MarkusGordathian/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/MarkusGordathian/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/MarkusGordathian/subscriptions",
+        "organizations_url": "https://api.github.com/users/MarkusGordathian/orgs",
+        "repos_url": "https://api.github.com/users/MarkusGordathian/repos",
+        "events_url": "https://api.github.com/users/MarkusGordathian/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/MarkusGordathian/received_events",
+        "type": "User",
+        "site_admin": false
+    },
+    "prerelease": false,
+    "created_at": "2019-11-02T01:41:35Z",
+    "published_at": "2019-11-03T04:57:00Z",
+    "assets": [],
+    "tarball_url": "https://api.github.com/repos/MarkusGordathian/dummy/tarball/0.1.0",
+    "zipball_url": "https://api.github.com/repos/MarkusGordathian/dummy/zipball/0.1.0",
+    "body": "Tag here.\n"
+}
+
 options:
 --draft: do not prompt user for release message and use tag contents
 --prerelease: mark release as prerelease

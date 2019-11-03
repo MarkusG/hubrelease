@@ -397,9 +397,9 @@ int main(int argc, char *argv[])
 	}
 
 	// form the release URL
-	char *release_url = malloc(MAX_URL * sizeof(char));
+	char *release_endpoint = malloc(MAX_URL * sizeof(char));
 	char *stripped_remote = github_strip_remote(git_remote_url(preferred_remote));
-	sprintf(release_url, "%s/repos/%s/releases", base_url, stripped_remote);
+	sprintf(release_endpoint, "%s/repos/%s/releases", base_url, stripped_remote);
 
 	CURL *curl;
 	CURLcode res;
@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	curl_easy_setopt(curl, CURLOPT_URL, release_url);
+	curl_easy_setopt(curl, CURLOPT_URL, release_endpoint);
 		
 	// set useragent
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
@@ -464,4 +464,42 @@ int main(int argc, char *argv[])
 		fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
 		return 1;
 	}
+
+	json_error_t json_error;
+	json_t *root = json_loads(response.memory, 0, &json_error);
+
+	// check for errors
+	long http_code = 0;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+	if (http_code >= 400)
+	{
+		json_t *error_message = json_object_get(root, "message");
+		if (error_message)
+		{
+			fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
+			json_t *errors_array = json_object_get(root, "errors");
+			if (errors_array)
+			{
+				fputs(" (", stderr);
+				for (int i = 0; i < json_array_size(errors_array); i++)
+				{
+					json_t *error = json_array_get(errors_array, i);
+					json_t *error_code = json_object_get(error, "code");
+					fputs(json_string_value(error_code), stderr);
+					if (i < json_array_size(errors_array) - 1)
+						fputc(' ', stderr);
+				}
+				fputc(')', stderr);
+			}
+			fputc('\n', stderr);
+			return 1;
+		}
+	}
+
+	// get the release url and print to stdout
+	json_t *url_field = json_object_get(root, "url");
+	const char *release_url = json_string_value(url_field);
+
+	fprintf(stderr, INFO "Release created at:\n");
+	printf("%s\n", release_url);
 }
