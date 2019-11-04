@@ -6,10 +6,10 @@
 git_repository *repo;
 git_remote *preferred_remote;
 
-int r_git_error(void);
-int r_git_warn(void);
+int h_git_error(void);
+int h_git_warn(void);
 
-const git_tag *r_git_tag_at(const char *commit);
-const char *r_git_editor();
+const git_tag *h_git_tag_at(const char *commit);
+const char *h_git_editor();
 
 #endif

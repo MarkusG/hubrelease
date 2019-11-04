@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 	git_libgit2_init();
 	if (git_repository_open(&repo, ".git"))
 	{
-		r_git_error();
+		h_git_error();
 		return 1;
 	}
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 	git_strarray array;
 	if (git_remote_list(&array, repo))
 	{
-		r_git_error();
+		h_git_error();
 		return 1;
 	}
 	if (array.count == 0)
@@ -128,11 +128,11 @@ int main(int argc, char *argv[])
 		// get from command-line option
 		if (git_remote_lookup(&preferred_remote, repo, opt_remote))
 		{
-			r_git_error();
+			h_git_error();
 			return 1;
 		}
 	}
-	else if (remote_file = fopen(".releaser_remote", "r"))
+	else if (remote_file = fopen(".hubrelease_remote", "r"))
 	{
 		// get from cache file
 		const char *cached_remote_name = malloc(MAX_REMOTE * sizeof(char));
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
 			scanf("%d", &remote_index);
 		}
 		// cache the preferred remote
-		remote_file = fopen(".releaser_remote", "w");
+		remote_file = fopen(".hubrelease_remote", "w");
 		fputs(github_remotes[remote_index], remote_file);
 		fclose(remote_file);
 		git_remote_lookup(&preferred_remote, repo, github_remotes[remote_index]);
@@ -214,13 +214,13 @@ int main(int argc, char *argv[])
 	git_reference *head_ref;
 	if (git_repository_head(&head_ref, repo))
 	{
-		r_git_error();
+		h_git_error();
 		return 1;
 	}
 
 	if (git_reference_resolve(&head_ref, head_ref))
 	{
-		r_git_error();
+		h_git_error();
 		return 1;
 	}
 
@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 	char *head = malloc(42 * sizeof(char));
 	head = git_oid_tostr(head, 42, oid);
 
-	const git_tag *head_tag = r_git_tag_at(head);
+	const git_tag *head_tag = h_git_tag_at(head);
 	if (!head_tag)
 	{
 		fprintf(stderr, ERR "No annotated tag at HEAD\n");
@@ -238,10 +238,10 @@ int main(int argc, char *argv[])
 
 	// write release message
 	// write tag message to release message file
-	FILE *release_message = fopen(".releaser_message", "w");
+	FILE *release_message = fopen(".hubrelease_message", "w");
 	if (!release_message)
 	{
-		fprintf(stderr, ERR "Could not open .releaser_message for writing\n");
+		fprintf(stderr, ERR "Could not open .hubrelease_message for writing\n");
 		perror(argv[0]);
 		return 1;
 	}
@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
 	if (!opt_draft)
 	{
 		// get git editor
-		const char *editor = r_git_editor();
+		const char *editor = h_git_editor();
 		if (!editor)
 			editor = getenv("EDITOR");
 		if (!editor)
@@ -274,7 +274,7 @@ int main(int argc, char *argv[])
 		}
 		if (pid == 0)
 		{
-			const char *args[] = { NULL, ".releaser_message", NULL };
+			const char *args[] = { NULL, ".hubrelease_message", NULL };
 			args[0] = editor;
 			execvp(editor, (char**)args);
 			exit(0);
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
 
 		// check if the user cleared the release message to abort the release
 		struct stat release_message_stat;
-		if (stat(".releaser_message", &release_message_stat) == -1)
+		if (stat(".hubrelease_message", &release_message_stat) == -1)
 			perror(argv[0]);
 		if (release_message_stat.st_size == 0)
 		{
@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 	char *base_url = "https://api.github.com";
 	// authorize to GitHub
 	// acquire access token
-	FILE *token_file = fopen(".releaser_token", "r");
+	FILE *token_file = fopen(".hubrelease_token", "r");
 	if (token_file)
 	{
 		char *file_github_token = malloc(42);
@@ -365,7 +365,7 @@ int main(int argc, char *argv[])
 
 		// set curl callback to save the response in memory
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
-		r_curl_response response;
+		h_curl_response response;
 		response.memory = malloc(1);
 		response.size = 0;
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 
 		// set POST data
-		char data[] = "{\"scopes\": [\"public_repo\"], \"note\": \"releaser\"}";
+		char data[] = "{\"scopes\": [\"public_repo\"], \"note\": \"hubrelease\"}";
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 
 
@@ -422,10 +422,10 @@ int main(int argc, char *argv[])
 		json_t *json_token = json_object_get(root, "token");
 		opt_github_token = json_string_value(json_token);
 
-		FILE *token_file = fopen(".releaser_token", "w");
+		FILE *token_file = fopen(".hubrelease_token", "w");
 		fputs(opt_github_token, token_file);
 		fclose(token_file);
-		fprintf(stderr, INFO "Wrote token to .releaser_token. DO NOT TRACK THIS FILE WITH GIT\n");
+		fprintf(stderr, INFO "Wrote token to .hubrelease_token. DO NOT TRACK THIS FILE WITH GIT\n");
 		curl_easy_cleanup(curl);
 	}
 
@@ -458,16 +458,16 @@ int main(int argc, char *argv[])
 
 	// set curl callback to save the response in memory
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
-	r_curl_response response;
+	h_curl_response response;
 	response.memory = malloc(1);
 	response.size = 0;
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
 
 	// set POST data
-	// get title and body from .releaser_message
-	release_message = fopen(".releaser_message", "r");
+	// get title and body from .hubrelease_message
+	release_message = fopen(".hubrelease_message", "r");
 	struct stat release_message_stat;
-	if (stat(".releaser_message", &release_message_stat) == -1)
+	if (stat(".hubrelease_message", &release_message_stat) == -1)
 		perror(argv[0]);
 	off_t message_size = release_message_stat.st_size;
 	char *name = malloc(MAX_TITLE * sizeof(char));
@@ -605,7 +605,7 @@ int main(int argc, char *argv[])
 
 			// write response to memory
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
-			r_curl_response response;
+			h_curl_response response;
 			response.memory = malloc(1);
 			response.size = 0;
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);

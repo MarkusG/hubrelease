@@ -1,8 +1,8 @@
 CC=gcc
 
 make:
-	$(CC) -o releaser src/*.c -lgit2 -lcurl -ljansson
+	$(CC) -o hubrelease src/*.c -lgit2 -lcurl -ljansson
 debug:
-	$(CC) -o releaser -g src/*.c -lgit2 -lcurl -ljansson
+	$(CC) -o hubrelease -g src/*.c -lgit2 -lcurl -ljansson
 clean:
-	rm releaser
+	rm hubrelease

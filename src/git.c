@@ -7,13 +7,13 @@
 git_repository *repo;
 git_remote *preferred_remote;
 
-int r_git_error(void)
+int h_git_error(void)
 {
 	const git_error *error = git_error_last();
 	return fprintf(stderr, ERR "git: %s\n", error->message);
 }
 
-int r_git_warn(void)
+int h_git_warn(void)
 {
 	const git_error *error = git_error_last();
 	return fprintf(stderr, WARN "git: %s\n", error->message);
@@ -33,7 +33,7 @@ int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 	if (git_tag_lookup(&cur_tag, repo, oid))
 	{
 		fprintf(stderr, WARN "%s is lightweight and cannot be used for a release\n", name);
-		r_git_warn();
+		h_git_warn();
 		return 0;
 	}
 
@@ -47,12 +47,12 @@ int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 	data->tag = cur_tag;
 }
 
-const git_tag *r_git_tag_at(const char *commit)
+const git_tag *h_git_tag_at(const char *commit)
 {
 	git_oid commit_oid;
 	if (git_oid_fromstr(&commit_oid, commit))
 	{
-		r_git_warn();
+		h_git_warn();
 		return NULL;
 	}
 	
@@ -64,24 +64,24 @@ const git_tag *r_git_tag_at(const char *commit)
 	return predicate.tag;
 }
 
-const char *r_git_editor()
+const char *h_git_editor()
 {
 	git_config *config;
 	if (git_repository_config(&config, repo))
 	{
-		r_git_warn();
+		h_git_warn();
 		return NULL;
 	}
 	git_config *snapshot;
 	if (git_config_snapshot(&snapshot, config))
 	{
-		r_git_warn();
+		h_git_warn();
 		return NULL;
 	}
 	const char *editor;
 	if (git_config_get_string(&editor, snapshot, "core.editor"))
 	{
-		r_git_warn();
+		h_git_warn();
 		return NULL;
 	}
 	return editor;

@@ -7,7 +7,7 @@
 size_t write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t realsize = size * nmemb;
-	r_curl_response *mem = (r_curl_response*)userp;
+	h_curl_response *mem = (h_curl_response*)userp;
 
 	char *ptr = realloc(mem->memory, mem->size + realsize + 1);
 	if(!ptr) {
