@@ -24,15 +24,20 @@
 
 #define PAYLOAD_EXTRA 256
 #define REMOTE_BUFSIZE 8
+#define ASSET_BUFSIZE 8
 
 char opt_draft = 0;
 char opt_prerelease = 0;
 char *opt_remote;
 const char *opt_github_token;
+const char **opt_assets;
 
 int main(int argc, char *argv[])
 {
 	// parse command-line options
+	int asset_bufsize = 0;
+	opt_assets = malloc(asset_bufsize * sizeof(char*));
+	int n_assets = 0;
 	for (int i = 1; i < argc; i++)
 	{
 		if (strcmp(argv[i], "--draft") == 0)
@@ -59,6 +64,31 @@ int main(int argc, char *argv[])
 			}
 			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char));
 			strcpy(opt_remote, argv[i + 1]);
+		}
+		if (strcmp(argv[i], "--asset") == 0)
+		{
+			if (!argv[i + 1])
+			{
+				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
+				return 1;
+			}
+
+			char dup = 0;
+			for (int j = 0; j < n_assets; j++)
+			{
+				if (strcmp(opt_assets[j], argv[i + 1]) == 0)
+					dup = 1;
+			}
+			if (dup)
+				continue;
+
+			
+			if (n_assets + 1 > asset_bufsize)
+			{
+				asset_bufsize += ASSET_BUFSIZE;
+				opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*));
+			}
+			opt_assets[n_assets++] = argv[i + 1];
 		}
 	}
 
@@ -216,6 +246,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	// TODO dont do this
 	// write tag message to release message
 	fprintf(release_message, "%s", git_tag_message(head_tag));
 	fclose(release_message);
@@ -233,7 +264,8 @@ int main(int argc, char *argv[])
 			editor = "nano";
 		}
 
-		// open vim and wait for user to edit message
+		// open editor and wait for user to edit message
+		// TODO redirecting stdout breaks editors
 		pid_t pid = fork();
 		if (pid == -1)
 		{
@@ -274,6 +306,7 @@ int main(int argc, char *argv[])
 	}
 	else if (!opt_github_token)
 	{
+		// TODO remove newlines
 		// get the user's username
 		char *github_username = malloc(MAX_USERNAME * sizeof(char));
 		if (!github_username)
@@ -500,6 +533,132 @@ int main(int argc, char *argv[])
 	json_t *url_field = json_object_get(root, "url");
 	const char *release_url = json_string_value(url_field);
 
-	fprintf(stderr, INFO "Release created at:\n");
+	// TODO this isnt the right url
+	fprintf(stderr, INFO "Release created at %s\n", release_url);
 	printf("%s\n", release_url);
+
+	// upload assets
+	if (n_assets > 0)
+	{
+		// get upload url
+		json_t *upload_field = json_object_get(root, "upload_url");
+		const char *raw_upload_url = json_string_value(upload_field);
+		char *base_upload_url = strdup(raw_upload_url);
+		int len = strlen(raw_upload_url);
+		int n = strlen("{?name,label}");
+		base_upload_url[len - n] = '\0';
+
+		// get asset files
+		for (int i = 0; i < n_assets; i++)
+		{
+			fprintf(stderr, INFO "Uploading asset %s\n", opt_assets[i]);
+			struct stat asset_stat;
+			if (stat(opt_assets[i], &asset_stat) == -1)
+			{
+				fprintf(stderr, ERR "Error with asset %s:\n", opt_assets[i]);
+				perror(argv[0]);
+				continue;
+			}
+			if (asset_stat.st_size == 0)
+			{
+				fprintf(stderr, ERR "Empty asset file: %s\n", opt_assets[i]);
+				return 1;
+			}
+
+			char *upload_url = malloc((strlen(base_upload_url) + strlen(opt_assets[i]) + strlen("?name=")) * sizeof(char));
+			sprintf(upload_url, "%s?name=%s", base_upload_url, opt_assets[i]);
+
+			// sanitize url
+			// TODO do this properly
+			int j = 0;
+			char c;
+			while ((c = upload_url[j]) != '\0')
+			{
+				if (c == ' ')
+					upload_url[j] = '_';
+				j++;
+			}
+
+			CURL *curl;
+			CURLcode res;
+
+			curl = curl_easy_init();
+			if (!curl)
+			{
+				fprintf(stderr, ERR "Unknown error with libcurl");
+				return 1;
+			}
+
+			// set url
+			curl_easy_setopt(curl, CURLOPT_URL, upload_url);
+
+			// set headers
+			struct curl_slist *chunk = NULL;
+			// TODO detect other file types
+			chunk = curl_slist_append(chunk, "Content-Type: application/gzip");
+
+			char *auth_header = malloc(MAX_HEADER * sizeof(char));
+			sprintf(auth_header, "Authorization: token %s", opt_github_token);
+			chunk = curl_slist_append(chunk, auth_header);
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+
+			// write response to memory
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+			r_curl_response response;
+			response.memory = malloc(1);
+			response.size = 0;
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
+
+			// set useragent
+			curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+			// tell curl to upload the file
+			FILE *asset_file = fopen(opt_assets[i], "r");
+
+			curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+			curl_easy_setopt(curl, CURLOPT_READDATA, asset_file);
+			curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)asset_stat.st_size);
+
+			res = curl_easy_perform(curl);
+			if (res != CURLE_OK)
+			{
+				fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
+				return 1;
+			}
+			fclose(asset_file);
+
+			json_error_t json_error;
+			json_t *root = json_loads(response.memory, 0, &json_error);
+
+			// check for errors
+			long http_code = 0;
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+			if (http_code >= 400)
+			{
+				json_t *error_message = json_object_get(root, "message");
+				if (error_message)
+				{
+					fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
+					json_t *errors_array = json_object_get(root, "errors");
+					if (errors_array)
+					{
+						fputs(" (", stderr);
+						for (int i = 0; i < json_array_size(errors_array); i++)
+						{
+							json_t *error = json_array_get(errors_array, i);
+							json_t *error_code = json_object_get(error, "code");
+							fputs(json_string_value(error_code), stderr);
+							if (i < json_array_size(errors_array) - 1)
+								fputc(' ', stderr);
+						}
+						fputc(')', stderr);
+					}
+					fputc('\n', stderr);
+					return 1;
+				}
+			}
+			// TODO make sure we cleaned up all the other ones
+			curl_easy_cleanup(curl);
+		}
+	}
 }
