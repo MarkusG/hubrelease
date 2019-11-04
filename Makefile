@@ -1,4 +1,8 @@
+CC=gcc
+
 make:
-	gcc src/*.c -lgit2 -lcurl -ljansson
+	$(CC) -o releaser src/*.c -lgit2 -lcurl -ljansson
 debug:
-	gcc -g src/*.c -lgit2 -lcurl -ljansson
+	$(CC) -o releaser -g src/*.c -lgit2 -lcurl -ljansson
+clean:
+	rm releaser
