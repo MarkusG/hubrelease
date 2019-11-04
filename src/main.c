@@ -305,11 +305,10 @@ int main(int argc, char *argv[])
 
 		// check if the user cleared the release message to abort the release
 		struct stat release_message_stat;
-		if (stat(".hubrelease_message", &release_message_stat) == -1)
-			perror(argv0);
-		if (release_message_stat.st_size == 0)
+		if (stat(".hubrelease_message", &release_message_stat) == -1 ||
+			release_message_stat.st_size == 0)
 		{
-			fprintf(stderr, ERR "Empty release message\n");
+			fprintf(stderr, ERR "No release message\n");
 			return 1;
 		}
 	}
