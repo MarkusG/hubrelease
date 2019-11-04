@@ -13,11 +13,6 @@
 #include "git.h"
 #include "github.h"
 
-#define MAX_URL 128
-#define MAX_USERNAME 64
-#define MAX_PASSWORD 64
-#define MAX_OTP 8
-#define MAX_HEADER 64
 #define MAX_REMOTE 64
 #define MAX_ERROR 128
 #define MAX_TITLE 64
@@ -29,11 +24,15 @@
 char opt_draft = 0;
 char opt_prerelease = 0;
 char *opt_remote;
-const char *opt_github_token;
+const char *opt_github_token = NULL;
 const char **opt_assets;
+
+const char *argv0;
+const char *base_url = "https://api.github.com";
 
 int main(int argc, char *argv[])
 {
+	argv0 = argv[0];
 	// parse command-line options
 	int asset_bufsize = 0;
 	opt_assets = malloc(asset_bufsize * sizeof(char*));
@@ -54,6 +53,11 @@ int main(int argc, char *argv[])
 			char *arg_github_token = malloc(strlen(argv[i + 1]) * sizeof(char));
 			strcpy(arg_github_token, argv[i + 1]);
 			opt_github_token = arg_github_token;
+		}
+		if (strcmp(argv[i], "--generate-token") == 0)
+		{
+			puts(github_generate_token());
+			return 0;
 		}
 		if (strcmp(argv[i], "--remote") == 0)
 		{
@@ -257,7 +261,7 @@ int main(int argc, char *argv[])
 		if (!release_message)
 		{
 			fprintf(stderr, ERR "Could not open .hubrelease_message for writing\n");
-			perror(argv[0]);
+			perror(argv0);
 			return 1;
 		}
 
@@ -302,7 +306,7 @@ int main(int argc, char *argv[])
 		// check if the user cleared the release message to abort the release
 		struct stat release_message_stat;
 		if (stat(".hubrelease_message", &release_message_stat) == -1)
-			perror(argv[0]);
+			perror(argv0);
 		if (release_message_stat.st_size == 0)
 		{
 			fprintf(stderr, ERR "Empty release message\n");
@@ -310,140 +314,15 @@ int main(int argc, char *argv[])
 		}
 	}
 	
-	char *base_url = "https://api.github.com";
-	// authorize to GitHub
-	// acquire access token
-	FILE *token_file = fopen(".hubrelease_token", "r");
-	if (token_file)
+	// ensure token exists
+	if (!opt_github_token)
+		// not passed on command line
+		opt_github_token = getenv("HUBRELEASE_GITHUB_TOKEN");
+	if (!opt_github_token)
 	{
-		char *file_github_token = malloc(42);
-		fgets(file_github_token, 41, token_file);
-		opt_github_token = file_github_token;
-		fclose(token_file);
-	}
-	else if (!opt_github_token)
-	{
-		// get the user's username
-		char *github_username = malloc(MAX_USERNAME * sizeof(char));
-		if (!github_username)
-			perror(argv[0]);
-		fprintf(stderr, "GitHub username: ");
-		scanf("%s", github_username);
-
-		// get the user's password
-		// should anything special be done here to protect the password?
-		char *github_password = malloc(MAX_USERNAME * sizeof(char));
-		if (!github_password)
-			perror(argv[0]);
-		fprintf(stderr, "GitHub password: ");
-		// TODO no echo
-		scanf("%s", github_password);
-
-		// acquire a token
-		CURL *curl;
-		CURLcode res;
-
-		curl = curl_easy_init();
-		if (!curl)
-		{
-			fprintf(stderr, ERR "Unknown error with libcurl");
-			return 1;
-		}
-		
-		// form auth URL
-		char *auth_url = malloc((strlen(base_url) + strlen("/authorizations")) * sizeof(char));
-		sprintf(auth_url, "%s/authorizations", base_url);
-		curl_easy_setopt(curl, CURLOPT_URL, auth_url);
-
-		// get OTP code if user is using 2FA
-		char *github_otp = malloc(MAX_OTP * sizeof(char));
-		if (!github_otp)
-			perror(argv[0]);
-		fprintf(stderr, "GitHub 2FA code (0 if not using 2FA): ");
-		scanf("%s", github_otp);
-
-		// set headers
-		struct curl_slist *chunk = NULL;
-		chunk = curl_slist_append(chunk, "Content-Type: application/json");
-
-		if (strcmp(github_otp, "0") != 0)
-		{
-			char *github_otp_header = malloc(MAX_HEADER * sizeof(char));
-			sprintf(github_otp_header, "X-GitHub-OTP: %s", github_otp);
-			chunk = curl_slist_append(chunk, github_otp_header);
-		}
-
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-
-		// set username/password
-		char *github_userpwd = malloc((MAX_USERNAME + MAX_PASSWORD) * sizeof(char));
-		sprintf(github_userpwd, "%s:%s", github_username, github_password);
-		curl_easy_setopt(curl, CURLOPT_USERPWD, github_userpwd);
-
-		// set curl callback to save the response in memory
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
-		h_curl_response response;
-		response.memory = malloc(1);
-		response.size = 0;
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&response);
-
-		// set useragent
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
-
-		// set POST data
-		char data[] = "{\"scopes\": [\"public_repo\"], \"note\": \"hubrelease\"}";
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-
-
-		// perform the request
-		res = curl_easy_perform(curl);
-		if (res != CURLE_OK)
-		{
-			fprintf(stderr, ERR "curl: %s\n", curl_easy_strerror(res));
-			return 1;
-		}
-
-		// read the response into a json object
-		json_error_t json_error;
-		json_t *root = json_loads(response.memory, 0, &json_error);
-
-		// check for errors
-		long http_code = 0;
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-		if (http_code >= 400)
-		{
-			json_t *error_message = json_object_get(root, "message");
-			if (error_message)
-			{
-				fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
-				json_t *errors_array = json_object_get(root, "errors");
-				if (errors_array)
-				{
-					fputs(" (", stderr);
-					for (int i = 0; i < json_array_size(errors_array); i++)
-					{
-						json_t *error = json_array_get(errors_array, i);
-						json_t *error_code = json_object_get(error, "code");
-						fputs(json_string_value(error_code), stderr);
-						if (i < json_array_size(errors_array) - 1)
-							fputc(' ', stderr);
-					}
-					fputc(')', stderr);
-				}
-				fputc('\n', stderr);
-				return 1;
-			}
-		}
-
-		// strip the token from the response
-		json_t *json_token = json_object_get(root, "token");
-		opt_github_token = json_string_value(json_token);
-
-		FILE *token_file = fopen(".hubrelease_token", "w");
-		fputs(opt_github_token, token_file);
-		fclose(token_file);
-		fprintf(stderr, INFO "Wrote token to .hubrelease_token. DO NOT TRACK THIS FILE WITH GIT\n");
-		curl_easy_cleanup(curl);
+		// not passed through env var
+		fprintf(stderr, ERR "No GitHub token supplied\n");
+		return 1;
 	}
 
 	// form the release URL
@@ -485,7 +364,7 @@ int main(int argc, char *argv[])
 	FILE *release_message = fopen(".hubrelease_message", "r");
 	struct stat release_message_stat;
 	if (stat(".hubrelease_message", &release_message_stat) == -1)
-		perror(argv[0]);
+		perror(argv0);
 	off_t message_size = release_message_stat.st_size;
 	char *name = malloc(MAX_TITLE * sizeof(char));
 	fscanf(release_message, "%[^\n]", name);
@@ -498,7 +377,7 @@ int main(int argc, char *argv[])
 	body[i] = '\0';
 	fclose(release_message);
 	if (remove(".hubrelease_message"))
-		perror(argv[0]);
+		perror(argv0);
 
 	// form data string and pass to curl
 	json_t *data_json = json_pack("{sssssssbsb}", 
@@ -577,7 +456,7 @@ int main(int argc, char *argv[])
 			if (stat(opt_assets[i], &asset_stat) == -1)
 			{
 				fprintf(stderr, ERR "Error with asset %s:\n", opt_assets[i]);
-				perror(argv[0]);
+				perror(argv0);
 				continue;
 			}
 			if (asset_stat.st_size == 0)

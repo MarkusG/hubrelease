@@ -1,8 +1,11 @@
 #ifndef __RELEASER_GITHUB_H__
 #define __RELEASER_GITHUB_H__
 
+#define MAX_USERNAME 64
+#define MAX_PASSWORD 64
+#define MAX_OTP 8
+
 char *github_strip_remote(const char *remote);
-int github_post_release(const char *payload);
-int github_upload_asset(const char *path);
+const char *github_generate_token();
 
 #endif

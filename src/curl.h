@@ -3,6 +3,9 @@
 
 #include <curl/curl.h>
 
+#define MAX_URL 128
+#define MAX_HEADER 64
+
 typedef struct h_curl_response {
 	char *memory;
 	size_t size;
