@@ -239,24 +239,39 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+
 	// write release message
-	// write tag message to release message file
-	FILE *release_message = fopen(".hubrelease_message", "w");
-	if (!release_message)
+	if (access(".hubrelease_message", F_OK) != -1)
 	{
-		fprintf(stderr, ERR "Could not open .hubrelease_message for writing\n");
-		perror(argv[0]);
-		return 1;
+		// user already wrote the message
+		if (opt_draft)
+		{
+			fprintf(stderr, ERR "--draft set with pre-written release message\n");
+			return 1;
+		}
 	}
-
-	// TODO dont do this
-	// write tag message to release message
-	fprintf(release_message, "%s", git_tag_message(head_tag));
-	fclose(release_message);
-
-	// edit the release message if not a draft
-	if (!opt_draft)
+	else if (opt_draft)
 	{
+		// write tag message to release message file
+		FILE *release_message = fopen(".hubrelease_message", "w");
+		if (!release_message)
+		{
+			fprintf(stderr, ERR "Could not open .hubrelease_message for writing\n");
+			perror(argv[0]);
+			return 1;
+		}
+
+		fputs(git_tag_message(head_tag), release_message);
+		fclose(release_message);
+	}
+	else
+	{
+		if (!isatty(1))
+		{
+			fprintf(stderr, WARN "Opening editor while stdout is not to a tty\n");
+			fprintf(stderr, WARN "If this causes a problem, consider editing .hubrelease_message before invoking hubrelease\n");
+		}
+		// open in editor
 		// get git editor
 		const char *editor = h_git_editor();
 		if (!editor)
@@ -268,7 +283,6 @@ int main(int argc, char *argv[])
 		}
 
 		// open editor and wait for user to edit message
-		// TODO redirecting stdout breaks editors
 		pid_t pid = fork();
 		if (pid == -1)
 		{
@@ -468,7 +482,7 @@ int main(int argc, char *argv[])
 
 	// set POST data
 	// get title and body from .hubrelease_message
-	release_message = fopen(".hubrelease_message", "r");
+	FILE *release_message = fopen(".hubrelease_message", "r");
 	struct stat release_message_stat;
 	if (stat(".hubrelease_message", &release_message_stat) == -1)
 		perror(argv[0]);
@@ -482,6 +496,9 @@ int main(int argc, char *argv[])
 	while ((c = fgetc(release_message)) != EOF)
 		body[i++] = c;
 	body[i] = '\0';
+	fclose(release_message);
+	if (remove(".hubrelease_message"))
+		perror(argv[0]);
 
 	// form data string and pass to curl
 	json_t *data_json = json_pack("{sssssssbsb}", 
