@@ -11,10 +11,10 @@ $ hubrelease --asset mypackage.tar.gz
 
 ## Options
 ```
---draft:         create a draft release
---prerelease:    create a prerelease
---remote REMOTE: specify the remote to use
---asset FILE:    specify file to upload (can be used multiple times)
+--draft:           create a draft release
+--prerelease:      create a prerelease
+--remote REMOTE:   specify the remote to use
+--assets FILE ...: specify files to upload
 ```
 
 ## Dependencies

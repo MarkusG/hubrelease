@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 			opt_prerelease = 1;
 		if (strcmp(argv[i], "--token") == 0)
 		{
-			if (!argv[i + 1])
+			if (argv[i + 1][0] == '-' || !argv[i + 1])
 			{
 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
 				return 1;
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 		}
 		if (strcmp(argv[i], "--remote") == 0)
 		{
-			if (!argv[i + 1])
+			if (argv[i + 1][0] == '-' || !argv[i + 1])
 			{
 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
 				return 1;
@@ -65,30 +65,33 @@ int main(int argc, char *argv[])
 			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char));
 			strcpy(opt_remote, argv[i + 1]);
 		}
-		if (strcmp(argv[i], "--asset") == 0)
+		if (strcmp(argv[i], "--assets") == 0)
 		{
-			if (!argv[i + 1])
+			if (argv[i + 1][0] == '-' || !argv[i + 1])
 			{
 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
 				return 1;
 			}
 
-			char dup = 0;
-			for (int j = 0; j < n_assets; j++)
+			i++;
+			for (i; i < argc && argv[i][0] != '-'; i++)
 			{
-				if (strcmp(opt_assets[j], argv[i + 1]) == 0)
-					dup = 1;
-			}
-			if (dup)
-				continue;
+				char dup = 0;
+				for (int j = 0; j < n_assets; j++)
+				{
+					if (strcmp(opt_assets[j], argv[i]) == 0)
+						dup = 1;
+				}
+				if (dup)
+					continue;
 
-			
-			if (n_assets + 1 > asset_bufsize)
-			{
-				asset_bufsize += ASSET_BUFSIZE;
-				opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*));
+				if (n_assets + 1 > asset_bufsize)
+				{
+					asset_bufsize += ASSET_BUFSIZE;
+					opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*));
+				}
+				opt_assets[n_assets++] = argv[i];
 			}
-			opt_assets[n_assets++] = argv[i + 1];
 		}
 	}
 
