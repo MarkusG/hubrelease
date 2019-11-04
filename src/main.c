@@ -306,12 +306,11 @@ int main(int argc, char *argv[])
 	}
 	else if (!opt_github_token)
 	{
-		// TODO remove newlines
 		// get the user's username
 		char *github_username = malloc(MAX_USERNAME * sizeof(char));
 		if (!github_username)
 			perror(argv[0]);
-		fprintf(stderr, "GitHub username: \n");
+		fprintf(stderr, "GitHub username: ");
 		scanf("%s", github_username);
 
 		// get the user's password
@@ -319,7 +318,7 @@ int main(int argc, char *argv[])
 		char *github_password = malloc(MAX_USERNAME * sizeof(char));
 		if (!github_password)
 			perror(argv[0]);
-		fprintf(stderr, "GitHub password: \n");
+		fprintf(stderr, "GitHub password: ");
 		// TODO no echo
 		scanf("%s", github_password);
 
@@ -427,6 +426,7 @@ int main(int argc, char *argv[])
 		fputs(opt_github_token, token_file);
 		fclose(token_file);
 		fprintf(stderr, INFO "Wrote token to .releaser_token. DO NOT TRACK THIS FILE WITH GIT\n");
+		curl_easy_cleanup(curl);
 	}
 
 	// form the release URL
@@ -529,13 +529,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	// get the release url and print to stdout
-	json_t *url_field = json_object_get(root, "url");
-	const char *release_url = json_string_value(url_field);
+	curl_easy_cleanup(curl);
 
-	// TODO this isnt the right url
-	fprintf(stderr, INFO "Release created at %s\n", release_url);
-	printf("%s\n", release_url);
+	// get the release url and print to stdout
+	json_t *html_url_field = json_object_get(root, "html_url");
+	const char *html_url = json_string_value(html_url_field);
+
+	fprintf(stderr, INFO "Release created at %s\n", html_url);
+	printf("%s\n", html_url);
 
 	// upload assets
 	if (n_assets > 0)
@@ -657,7 +658,6 @@ int main(int argc, char *argv[])
 					return 1;
 				}
 			}
-			// TODO make sure we cleaned up all the other ones
 			curl_easy_cleanup(curl);
 		}
 	}
