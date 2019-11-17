@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <termios.h>
 
 #include <jansson.h>
 
@@ -46,13 +48,23 @@ const char *github_generate_token()
 	scanf("%s", github_username);
 
 	// get the user's password
-	// should anything special be done here to protect the password?
-	char *github_password = malloc(MAX_USERNAME * sizeof(char));
+	char *github_password = malloc(MAX_PASSWORD * sizeof(char));
 	if (!github_password)
 		perror(argv0);
 	fprintf(stderr, "GitHub password: ");
-	// TODO no echo
-	scanf("%s", github_password);
+	// set echo off
+	struct termios old, new;
+	tcgetattr(STDIN_FILENO, &new);
+	old = new;
+	new.c_lflag &= ~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new);
+	// get password
+	fgets(github_password, MAX_PASSWORD, stdin);
+	putchar('\n');
+	// restore old terminal settings
+	tcsetattr(STDIN_FILENO, TCSANOW, &old);
+	// remove trailing newline
+	github_password[strlen(github_password) - 1] = '\0';
 
 	// acquire a token
 	CURL *curl;
