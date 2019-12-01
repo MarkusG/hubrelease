@@ -286,22 +286,11 @@ int main(int argc, char *argv[])
 			editor = "nano";
 		}
 
-		// open editor and wait for user to edit message
-		pid_t pid = fork();
-		if (pid == -1)
-		{
-			fprintf(stderr, ERR "Couldn't fork\n");
-			return 1;
-		}
-		if (pid == 0)
-		{
-			const char *args[] = { NULL, ".hubrelease_message", NULL };
-			args[0] = editor;
-			execvp(editor, (char**)args);
-			exit(0);
-		}
-		else
-			wait(NULL);
+		// have user edit message
+		int len = strlen(editor) + strlen(".hubrelease_message");
+		char *command = malloc(len * sizeof(char));
+		sprintf(command, "%s .hubrelease_message", editor);
+		system(command);
 
 		// check if the user cleared the release message to abort the release
 		struct stat release_message_stat;
