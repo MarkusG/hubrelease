@@ -22,8 +22,8 @@ $ hubrelease --asset mypackage.tar.gz
 --prerelease       create a prerelease
 --token TOKEN      specify GitHub token
 --generate-token   generate GitHub token
---remote REMOTE:   specify the remote to use
---assets FILE ...: specify files to upload
+--remote REMOTE    specify the remote to use
+--assets FILE ...  specify files to upload
 ```
 
 ## Dependencies
