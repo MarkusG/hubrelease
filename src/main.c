@@ -9,6 +9,7 @@
 #include <jansson.h>
 
 #include "common.h"
+#include "options.h"
 #include "curl.h"
 #include "git.h"
 #include "github.h"
@@ -21,8 +22,6 @@
 #define REMOTE_BUFSIZE 8
 #define ASSET_BUFSIZE 8
 
-int parse_options(int argc, char *argv[], int *n_assets);
-
 char opt_draft = 0;
 char opt_prerelease = 0;
 char *opt_remote;
@@ -34,11 +33,23 @@ const char *base_url = "https://api.github.com";
 
 int main(int argc, char *argv[])
 {
+	struct arguments args = parse_options(argc, argv);
+	printf("draft: %s\npre: %s\ntok: %s\ngen: %s\nrem: %s\n",
+		   args.draft ? "yes" : "no",
+		   args.prerelease ? "yes" : "no",
+		   args.token,
+		   args.generate_token ? "yes" : "no",
+		   args.remote);
+	printf("assets:\n");
+	for (int i = 0; args.assets[i]; i++)
+		printf("%s\n", args.assets[i]);
+	return 0;
+
 	argv0 = argv[0];
 	int n_assets;
-	int result = parse_options(argc, argv, &n_assets);
-	if (result)
-		return result;
+	/* int result = parse_options(argc, argv, &n_assets); */
+	/* if (result) */
+	/* 	return result; */
 
 	// initialize git
 	git_libgit2_init();
@@ -491,71 +502,71 @@ int main(int argc, char *argv[])
 	}
 }
 
-int parse_options(int argc, char *argv[], int *n_assets)
-{
-	*n_assets = 0;
-	int asset_bufsize = 0;
-	opt_assets = malloc(asset_bufsize * sizeof(char*));
-	for (int i = 1; i < argc; i++)
-	{
-		if (strcmp(argv[i], "--draft") == 0)
-			opt_draft = 1;
-		if (strcmp(argv[i], "--prerelease") == 0)
-			opt_prerelease = 1;
-		if (strcmp(argv[i], "--token") == 0)
-		{
-			if (argv[i + 1][0] == '-' || !argv[i + 1])
-			{
-				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
-				return 1;
-			}
-			char *arg_github_token = malloc(strlen(argv[i + 1]) * sizeof(char));
-			strcpy(arg_github_token, argv[i + 1]);
-			opt_github_token = arg_github_token;
-		}
-		if (strcmp(argv[i], "--generate-token") == 0)
-		{
-			puts(github_generate_token());
-			return 0;
-		}
-		if (strcmp(argv[i], "--remote") == 0)
-		{
-			if (argv[i + 1][0] == '-' || !argv[i + 1])
-			{
-				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
-				return 1;
-			}
-			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char));
-			strcpy(opt_remote, argv[i + 1]);
-		}
-		if (strcmp(argv[i], "--assets") == 0)
-		{
-			if (argv[i + 1][0] == '-' || !argv[i + 1])
-			{
-				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]);
-				return 1;
-			}
+/* int parse_options(int argc, char *argv[], int *n_assets) */
+/* { */
+/* 	*n_assets = 0; */
+/* 	int asset_bufsize = 0; */
+/* 	opt_assets = malloc(asset_bufsize * sizeof(char*)); */
+/* 	for (int i = 1; i < argc; i++) */
+/* 	{ */
+/* 		if (strcmp(argv[i], "--draft") == 0) */
+/* 			opt_draft = 1; */
+/* 		if (strcmp(argv[i], "--prerelease") == 0) */
+/* 			opt_prerelease = 1; */
+/* 		if (strcmp(argv[i], "--token") == 0) */
+/* 		{ */
+/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
+/* 			{ */
+/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
+/* 				return 1; */
+/* 			} */
+/* 			char *arg_github_token = malloc(strlen(argv[i + 1]) * sizeof(char)); */
+/* 			strcpy(arg_github_token, argv[i + 1]); */
+/* 			opt_github_token = arg_github_token; */
+/* 		} */
+/* 		if (strcmp(argv[i], "--generate-token") == 0) */
+/* 		{ */
+/* 			puts(github_generate_token()); */
+/* 			return 0; */
+/* 		} */
+/* 		if (strcmp(argv[i], "--remote") == 0) */
+/* 		{ */
+/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
+/* 			{ */
+/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
+/* 				return 1; */
+/* 			} */
+/* 			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char)); */
+/* 			strcpy(opt_remote, argv[i + 1]); */
+/* 		} */
+/* 		if (strcmp(argv[i], "--assets") == 0) */
+/* 		{ */
+/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
+/* 			{ */
+/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
+/* 				return 1; */
+/* 			} */
 
-			i++;
-			for (i; i < argc && argv[i][0] != '-'; i++)
-			{
-				char dup = 0;
-				for (int j = 0; j < *n_assets; j++)
-				{
-					if (strcmp(opt_assets[j], argv[i]) == 0)
-						dup = 1;
-				}
-				if (dup)
-					continue;
+/* 			i++; */
+/* 			for (i; i < argc && argv[i][0] != '-'; i++) */
+/* 			{ */
+/* 				char dup = 0; */
+/* 				for (int j = 0; j < *n_assets; j++) */
+/* 				{ */
+/* 					if (strcmp(opt_assets[j], argv[i]) == 0) */
+/* 						dup = 1; */
+/* 				} */
+/* 				if (dup) */
+/* 					continue; */
 
-				if (*n_assets + 1 > asset_bufsize)
-				{
-					asset_bufsize += ASSET_BUFSIZE;
-					opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*));
-				}
-				opt_assets[(*n_assets)++] = argv[i];
-			}
-		}
-	}
-	return 0;
-}
+/* 				if (*n_assets + 1 > asset_bufsize) */
+/* 				{ */
+/* 					asset_bufsize += ASSET_BUFSIZE; */
+/* 					opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*)); */
+/* 				} */
+/* 				opt_assets[(*n_assets)++] = argv[i]; */
+/* 			} */
+/* 		} */
+/* 	} */
+/* 	return 0; */
+/* } */
