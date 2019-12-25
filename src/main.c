@@ -22,34 +22,13 @@
 #define REMOTE_BUFSIZE 8
 #define ASSET_BUFSIZE 8
 
-char opt_draft = 0;
-char opt_prerelease = 0;
-char *opt_remote;
-const char *opt_github_token = NULL;
-const char **opt_assets;
-
 const char *argv0;
 const char *base_url = "https://api.github.com";
 
 int main(int argc, char *argv[])
 {
 	struct arguments args = parse_options(argc, argv);
-	printf("draft: %s\npre: %s\ntok: %s\ngen: %s\nrem: %s\n",
-		   args.draft ? "yes" : "no",
-		   args.prerelease ? "yes" : "no",
-		   args.token,
-		   args.generate_token ? "yes" : "no",
-		   args.remote);
-	printf("assets:\n");
-	for (int i = 0; args.assets[i]; i++)
-		printf("%s\n", args.assets[i]);
-	return 0;
-
 	argv0 = argv[0];
-	int n_assets;
-	/* int result = parse_options(argc, argv, &n_assets); */
-	/* if (result) */
-	/* 	return result; */
 
 	// initialize git
 	git_libgit2_init();
@@ -82,10 +61,10 @@ int main(int argc, char *argv[])
 
 	// set the preferred remote
 	FILE *remote_file;
-	if (opt_remote)
+	if (args.remote)
 	{
 		// get from command-line option
-		if (git_remote_lookup(&preferred_remote, repo, opt_remote))
+		if (git_remote_lookup(&preferred_remote, repo, args.remote))
 		{
 			h_git_error();
 			return 1;
@@ -200,13 +179,13 @@ int main(int argc, char *argv[])
 	if (access(".hubrelease_message", F_OK) != -1)
 	{
 		// user already wrote the message
-		if (opt_draft)
+		if (args.draft)
 		{
 			fprintf(stderr, ERR "--draft set with pre-written release message\n");
 			return 1;
 		}
 	}
-	else if (opt_draft)
+	else if (args.draft)
 	{
 		// write tag message to release message file
 		FILE *release_message = fopen(".hubrelease_message", "w");
@@ -255,10 +234,10 @@ int main(int argc, char *argv[])
 	}
 	
 	// ensure token exists
-	if (!opt_github_token)
+	if (!args.token)
 		// not passed on command line
-		opt_github_token = getenv("HUBRELEASE_GITHUB_TOKEN");
-	if (!opt_github_token)
+		args.token = getenv("HUBRELEASE_GITHUB_TOKEN");
+	if (!args.token)
 	{
 		// not passed through env var
 		fprintf(stderr, ERR "No GitHub token supplied\n");
@@ -288,7 +267,7 @@ int main(int argc, char *argv[])
 	// set headers
 	struct curl_slist *chunk = NULL;
 	char *auth_header = malloc(MAX_HEADER * sizeof(char));
-	sprintf(auth_header, "Authorization: token %s", opt_github_token);
+	sprintf(auth_header, "Authorization: token %s", args.token);
 	chunk = curl_slist_append(chunk, auth_header);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
 
@@ -324,8 +303,8 @@ int main(int argc, char *argv[])
 			"tag_name", git_tag_name(head_tag),
 			"name", name,
 			"body", body,
-			"draft", opt_draft,
-			"prerelease", opt_prerelease);
+			"draft", args.draft,
+			"prerelease", args.prerelease);
 	char *data = json_dumps(data_json, JSON_INDENT(4));
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
 
@@ -378,7 +357,7 @@ int main(int argc, char *argv[])
 	printf("%s\n", html_url);
 
 	// upload assets
-	if (n_assets > 0)
+	if (args.assets)
 	{
 		// get upload url
 		json_t *upload_field = json_object_get(root, "upload_url");
@@ -389,24 +368,24 @@ int main(int argc, char *argv[])
 		base_upload_url[len - n] = '\0';
 
 		// get asset files
-		for (int i = 0; i < n_assets; i++)
+		for (int i = 0; args.assets[i]; i++)
 		{
-			fprintf(stderr, INFO "Uploading asset %s\n", opt_assets[i]);
+			fprintf(stderr, INFO "Uploading asset %s\n", args.assets[i]);
 			struct stat asset_stat;
-			if (stat(opt_assets[i], &asset_stat) == -1)
+			if (stat(args.assets[i], &asset_stat) == -1)
 			{
-				fprintf(stderr, ERR "Error with asset %s:\n", opt_assets[i]);
+				fprintf(stderr, ERR "Error with asset %s:\n", args.assets[i]);
 				perror(argv0);
 				continue;
 			}
 			if (asset_stat.st_size == 0)
 			{
-				fprintf(stderr, ERR "Empty asset file: %s\n", opt_assets[i]);
+				fprintf(stderr, ERR "Empty asset file: %s\n", args.assets[i]);
 				return 1;
 			}
 
-			char *upload_url = malloc((strlen(base_upload_url) + strlen(opt_assets[i]) + strlen("?name=")) * sizeof(char));
-			sprintf(upload_url, "%s?name=%s", base_upload_url, opt_assets[i]);
+			char *upload_url = malloc((strlen(base_upload_url) + strlen(args.assets[i]) + strlen("?name=")) * sizeof(char));
+			sprintf(upload_url, "%s?name=%s", base_upload_url, args.assets[i]);
 
 			// sanitize url
 			// TODO do this properly
@@ -438,7 +417,7 @@ int main(int argc, char *argv[])
 			chunk = curl_slist_append(chunk, "Content-Type: application/gzip");
 
 			char *auth_header = malloc(MAX_HEADER * sizeof(char));
-			sprintf(auth_header, "Authorization: token %s", opt_github_token);
+			sprintf(auth_header, "Authorization: token %s", args.token);
 			chunk = curl_slist_append(chunk, auth_header);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
 
@@ -453,7 +432,7 @@ int main(int argc, char *argv[])
 			curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 
 			// tell curl to upload the file
-			FILE *asset_file = fopen(opt_assets[i], "r");
+			FILE *asset_file = fopen(args.assets[i], "r");
 
 			curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
 			curl_easy_setopt(curl, CURLOPT_READDATA, asset_file);
@@ -501,72 +480,3 @@ int main(int argc, char *argv[])
 		}
 	}
 }
-
-/* int parse_options(int argc, char *argv[], int *n_assets) */
-/* { */
-/* 	*n_assets = 0; */
-/* 	int asset_bufsize = 0; */
-/* 	opt_assets = malloc(asset_bufsize * sizeof(char*)); */
-/* 	for (int i = 1; i < argc; i++) */
-/* 	{ */
-/* 		if (strcmp(argv[i], "--draft") == 0) */
-/* 			opt_draft = 1; */
-/* 		if (strcmp(argv[i], "--prerelease") == 0) */
-/* 			opt_prerelease = 1; */
-/* 		if (strcmp(argv[i], "--token") == 0) */
-/* 		{ */
-/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
-/* 			{ */
-/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
-/* 				return 1; */
-/* 			} */
-/* 			char *arg_github_token = malloc(strlen(argv[i + 1]) * sizeof(char)); */
-/* 			strcpy(arg_github_token, argv[i + 1]); */
-/* 			opt_github_token = arg_github_token; */
-/* 		} */
-/* 		if (strcmp(argv[i], "--generate-token") == 0) */
-/* 		{ */
-/* 			puts(github_generate_token()); */
-/* 			return 0; */
-/* 		} */
-/* 		if (strcmp(argv[i], "--remote") == 0) */
-/* 		{ */
-/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
-/* 			{ */
-/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
-/* 				return 1; */
-/* 			} */
-/* 			opt_remote = malloc(strlen(argv[i + 1]) * sizeof(char)); */
-/* 			strcpy(opt_remote, argv[i + 1]); */
-/* 		} */
-/* 		if (strcmp(argv[i], "--assets") == 0) */
-/* 		{ */
-/* 			if (argv[i + 1][0] == '-' || !argv[i + 1]) */
-/* 			{ */
-/* 				fprintf(stderr, ERR "Option %s requires argument\n", argv[i]); */
-/* 				return 1; */
-/* 			} */
-
-/* 			i++; */
-/* 			for (i; i < argc && argv[i][0] != '-'; i++) */
-/* 			{ */
-/* 				char dup = 0; */
-/* 				for (int j = 0; j < *n_assets; j++) */
-/* 				{ */
-/* 					if (strcmp(opt_assets[j], argv[i]) == 0) */
-/* 						dup = 1; */
-/* 				} */
-/* 				if (dup) */
-/* 					continue; */
-
-/* 				if (*n_assets + 1 > asset_bufsize) */
-/* 				{ */
-/* 					asset_bufsize += ASSET_BUFSIZE; */
-/* 					opt_assets = realloc(opt_assets, asset_bufsize * sizeof(char*)); */
-/* 				} */
-/* 				opt_assets[(*n_assets)++] = argv[i]; */
-/* 			} */
-/* 		} */
-/* 	} */
-/* 	return 0; */
-/* } */
