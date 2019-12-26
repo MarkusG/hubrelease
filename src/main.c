@@ -30,6 +30,12 @@ int main(int argc, char *argv[])
 	struct arguments args = parse_options(argc, argv);
 	argv0 = argv[0];
 
+	if (args.generate_token)
+	{
+	    puts(github_generate_token());
+	    return 0;
+	}
+
 	// initialize git
 	git_libgit2_init();
 	if (git_repository_open(&repo, ".git"))
