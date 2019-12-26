@@ -9,11 +9,11 @@ static char doc[] =
 static char args_doc[] = "[ASSET...]";
 
 static struct argp_option options[] = {
-	{"draft",			'd', 0,			0,	"Mark release as draft"},
-	{"prerelease",		'p', 0,			0,	"Mark release as prerelease"},
-	{"generate-token",	'g', 0,			0,	"Generate GitHub authentication token and exit"},
-	{"token",			't', "TOKEN",	0,	"GitHub authentication token"},
-	{"remote",			'r', "REMOTE",	0,	"Specify remote to parse to GitHub URL"},
+	{"draft",		'd', 0,		0,	"Mark release as draft"},
+	{"prerelease",		'p', 0,		0,	"Mark release as prerelease"},
+	{"generate-token",	'g', 0,		0,	"Generate GitHub authentication token and exit"},
+	{"token",		't', "TOKEN",	0,	"GitHub authentication token"},
+	{"remote",		'r', "REMOTE",	0,	"Specify remote to parse to GitHub URL"},
 	{ 0 }
 };
 
