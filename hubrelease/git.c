@@ -45,6 +45,7 @@ int tag_at_callback(const char *name, git_oid *oid, void *userdata)
 	}
 	
 	data->tag = cur_tag;
+	return 1;
 }
 
 const git_tag *h_git_tag_at(const char *commit)

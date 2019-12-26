@@ -76,10 +76,10 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
-	else if (remote_file = fopen(".hubrelease_remote", "r"))
+	else if ((remote_file = fopen(".hubrelease_remote", "r")))
 	{
 		// get from cache file
-		const char *cached_remote_name = malloc(MAX_REMOTE * sizeof(char));
+		char *cached_remote_name = malloc(MAX_REMOTE * sizeof(char));
 		fscanf(remote_file, "%s", cached_remote_name);
 		fclose(remote_file);
 		git_remote_lookup(&preferred_remote, repo, cached_remote_name);
@@ -143,7 +143,10 @@ int main(int argc, char *argv[])
 		{
 			int k = 0;
 			while (github_remotes[k] != NULL)
-				printf("%0d. %s\n", k++, github_remote_names[k]);
+			{
+				printf("%0d. %s\n", k, github_remote_names[k]);
+				k++;
+			}
 			printf("Select remote: ");
 			scanf("%d", &remote_index);
 		}
@@ -290,7 +293,6 @@ int main(int argc, char *argv[])
 	struct stat release_message_stat;
 	if (stat(".hubrelease_message", &release_message_stat) == -1)
 		perror(argv0);
-	off_t message_size = release_message_stat.st_size;
 	char *name = malloc(MAX_TITLE * sizeof(char));
 	fscanf(release_message, "%[^\n]", name);
 	char *body = malloc(release_message_stat.st_size * sizeof(char));
