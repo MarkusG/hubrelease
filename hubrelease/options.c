@@ -1,7 +1,7 @@
 #include "options.h"
 
 const char *argp_program_version =
-	"hubrelease 0.1.0";
+	VERSION;
 const char *argp_program_bug_address =
 	"https://github.com/MarkusGordathian/hubrelease/issues";
 static char doc[] =
