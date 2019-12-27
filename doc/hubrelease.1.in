@@ -1,0 +1,47 @@
+.Dd @HUBRELEASE_RELEASE_DATE@
+.Dt HUBRELEASE 1
+.Sh NAME
+.Nm hubrelease
+.Nd create GitHub releases from the command line
+
+.Sh SYNOPSIS
+.Nm
+.Op Fl dgp
+.Op Fl r Ar REMOTE
+.Op Fl t Ar TOKEN
+.Cm [ASSET...]
+
+.Sh DESCRIPTION
+.Nm
+automatically parses the remotes of a git repository to find a GitHub URL, reads the tag at HEAD, allows the user to write a release message in the terminal, and creates the release and uploads any specified release assets.
+
+Upon success,
+.Nm
+writes the URL of the release to standard output.
+
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl d , -draft
+Indicate that the release is a draft. The release message will be set to the tag's message, and the user will not be prompted to modify it
+.It Fl g , -generate-token
+Generate a GitHub access token and exit. User will be prompted to enter their GitHub username, password, and 2FA code if applicable
+.It Fl p , -prerelease
+Indicate that the release is a prerelease
+.It Fl r Ar REMOTE , Fl -remote Ar REMOTE
+Indicate remote to try to parse to a GitHub URL
+.It Fl t Ar TOKEN , Fl -token Ar TOKEN
+Specify GitHub access token
+.Sh EXIT STATUS
+.Ex -std
+
+.Sh FILES
+.Bl -tag -width Ds
+.It Pa .hubrelease_message
+Release message. This file can be created prior to running hubrelease to publish a non-draft release with a pre-written release message.
+.It Pa .hubrelease_remote
+Cached remote to parse to a GitHub URL
+
+.Sh ENVIRONMENT
+.Bl -tag -width Ds
+.It Ev HUBRELEASE_GITHUB_TOKEN
+The user's GitHub access token
