@@ -16,4 +16,6 @@ sources = [
 
 executable(meson.project_name(),
   sources + headers,
-  dependencies: deps)
+  dependencies: deps,
+  install: true
+)
