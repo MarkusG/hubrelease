@@ -3,3 +3,5 @@ man_page = configure_file(
   output: 'hubrelease.1',
   configuration: version_conf
 )
+
+install_man(man_page)
