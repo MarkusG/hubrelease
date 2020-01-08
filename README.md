@@ -1,6 +1,6 @@
 # hubrelease
 
-hubrelease automates the creation of GitHub releases and the uploading of files to releases. hubrelease automatically detects a repository's upstream GitHub repository from its remotes, prompting the user for input if multiple GitHub repositories are found. Users can optionally edit the release messages in the terminal, similar to `git commit`.
+hubrelease allows you to create GitHub releases from the command line. hubrelease automatically detects a repository's upstream GitHub repository from its remotes, prompting the user for input if multiple GitHub repositories are found. Users can optionally add release assets, and edit the release messages in the terminal, similar to `git commit`.
 
 ## Basic Usage
 ```
