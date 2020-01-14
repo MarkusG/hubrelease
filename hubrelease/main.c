@@ -22,6 +22,8 @@
 #define REMOTE_BUFSIZE 8
 #define ASSET_BUFSIZE 8
 
+void http_err_msg(long http_code, json_t *response);
+
 const char *argv0;
 const char *base_url = "https://api.github.com";
 
@@ -32,8 +34,8 @@ int main(int argc, char *argv[])
 
 	if (args.generate_token)
 	{
-	    puts(github_generate_token());
-	    return 0;
+		puts(github_generate_token());
+		return 0;
 	}
 
 	// initialize git
@@ -101,7 +103,7 @@ int main(int argc, char *argv[])
 				github_remotes = realloc(github_remotes, bufsize);
 				github_remote_names = realloc(github_remotes, bufsize);
 			}
-				
+
 			git_remote *remote;
 			git_remote_lookup(&remote, repo, array.strings[i]);
 
@@ -241,7 +243,7 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 	}
-	
+
 	// ensure token exists
 	if (!args.token)
 		// not passed on command line
@@ -269,7 +271,7 @@ int main(int argc, char *argv[])
 	}
 
 	curl_easy_setopt(curl, CURLOPT_URL, release_endpoint);
-		
+
 	// set useragent
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
 
@@ -332,27 +334,8 @@ int main(int argc, char *argv[])
 	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 	if (http_code >= 400)
 	{
-		json_t *error_message = json_object_get(root, "message");
-		if (error_message)
-		{
-			fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
-			json_t *errors_array = json_object_get(root, "errors");
-			if (errors_array)
-			{
-				fputs(" (", stderr);
-				for (int i = 0; i < json_array_size(errors_array); i++)
-				{
-					json_t *error = json_array_get(errors_array, i);
-					json_t *error_code = json_object_get(error, "code");
-					fputs(json_string_value(error_code), stderr);
-					if (i < json_array_size(errors_array) - 1)
-						fputc(' ', stderr);
-				}
-				fputc(')', stderr);
-			}
-			fputc('\n', stderr);
-			return 1;
-		}
+		http_err_msg(http_code, root);
+		return 1;
 	}
 
 	curl_easy_cleanup(curl);
@@ -462,29 +445,38 @@ int main(int argc, char *argv[])
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 			if (http_code >= 400)
 			{
-				json_t *error_message = json_object_get(root, "message");
-				if (error_message)
-				{
-					fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
-					json_t *errors_array = json_object_get(root, "errors");
-					if (errors_array)
-					{
-						fputs(" (", stderr);
-						for (int i = 0; i < json_array_size(errors_array); i++)
-						{
-							json_t *error = json_array_get(errors_array, i);
-							json_t *error_code = json_object_get(error, "code");
-							fputs(json_string_value(error_code), stderr);
-							if (i < json_array_size(errors_array) - 1)
-								fputc(' ', stderr);
-						}
-						fputc(')', stderr);
-					}
-					fputc('\n', stderr);
-					return 1;
-				}
+				http_err_msg(http_code, root);
+				return 1;
 			}
 			curl_easy_cleanup(curl);
 		}
+	}
+}
+
+void http_err_msg(long http_code, json_t *response)
+{
+	json_t *error_message = json_object_get(response, "message");
+	if (error_message)
+	{
+		fprintf(stderr, ERR "GitHub: %s", json_string_value(error_message));
+		json_t *errors_array = json_object_get(response, "errors");
+		if (errors_array)
+		{
+			fputs(" (", stderr);
+			for (int i = 0; i < json_array_size(errors_array); i++)
+			{
+				json_t *error = json_array_get(errors_array, i);
+				json_t *error_code = json_object_get(error, "code");
+				fputs(json_string_value(error_code), stderr);
+				if (i < json_array_size(errors_array) - 1)
+					fputc(' ', stderr);
+			}
+			fputc(')', stderr);
+		}
+		fputc('\n', stderr);
+	}
+	else
+	{
+		fprintf(stderr, ERR "GitHub returned HTTP %ld\n", http_code);
 	}
 }
