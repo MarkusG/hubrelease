@@ -3,7 +3,7 @@
 const char *argp_program_version =
 	VERSION;
 const char *argp_program_bug_address =
-	"https://github.com/MarkusGordathian/hubrelease/issues";
+	"https://github.com/MarkusG/hubrelease/issues";
 static char doc[] =
 	"hubrelease -- automate the creation of GitHub releases";
 static char args_doc[] = "[ASSET...]";
