@@ -1,4 +1,4 @@
-[![CodeFactor](https://www.codefactor.io/repository/github/markusgordathian/hubrelease/badge)](https://www.codefactor.io/repository/github/markusgordathian/hubrelease)
+[![CodeFactor](https://www.codefactor.io/repository/github/markusg/hubrelease/badge)](https://www.codefactor.io/repository/github/markusg/hubrelease)
 
 # hubrelease
 
